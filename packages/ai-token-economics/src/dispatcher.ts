@@ -1,4 +1,4 @@
-import { computeTokenCost, computeImageCost, computeRequestCost, computeTimeCost } from "./compute.js";
+import { computeTokenCost, computeImageCost, computeRequestCost, computeTimeCost, computeGpuCost } from "./compute.js";
 import type { AiCostInput, AiCostResult } from "./types.js";
 
 /**
@@ -14,6 +14,7 @@ import type { AiCostInput, AiCostResult } from "./types.js";
  * | per_image        | computeImageCost (Gap 1)  |
  * | per_request      | computeRequestCost        |
  * | per_second       | computeTimeCost           |
+ * | per_gpu_hour     | computeGpuCost            |
  *
  * This is an exhaustive discriminated-union dispatch — TypeScript will
  * error at compile time if a new `AiPricingUnit` is added without a
@@ -34,6 +35,9 @@ export function computeAiCost(input: AiCostInput): AiCostResult {
 
     case "per_second":
       return computeTimeCost(input);
+
+    case "per_gpu_hour":
+      return computeGpuCost(input);
 
     default: {
       // Exhaustiveness check — this branch is unreachable if all cases are handled.

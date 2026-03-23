@@ -1,0 +1,20 @@
+{
+  "name": "@ficecal/carbon-economics",
+  "version": "0.1.0",
+  "description": "FiceCal v2 sustainability and carbon cost economics — cloud region carbon intensity, operational + embodied carbon per workload",
+  "type": "module",
+  "exports": { ".": "./src/index.ts" },
+  "scripts": {
+    "test": "node --experimental-vm-modules node_modules/vitest/vitest.mjs run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "decimal.js": "^10.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "^20.12.0",
+    "typescript": "^5.4.0",
+    "vitest": "^2.0.0"
+  },
+  "ficecal": { "phase": 11, "status": "active" }
+}

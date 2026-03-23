@@ -13,7 +13,8 @@ export type AiPricingUnit =
   | "per_1m_tokens"   // Charged per million tokens (batch rate)
   | "per_image"       // Image generation — charged per generated image (Gap 1)
   | "per_request"     // Flat charge per API call, regardless of token count
-  | "per_second";     // Compute-time pricing (e.g. streaming inference on some platforms)
+  | "per_second"      // Compute-time pricing (e.g. streaming inference on some platforms)
+  | "per_gpu_hour";  // GPU instance pricing — billed per GPU-hour (training, fine-tuning, dedicated inference)
 
 // ─── Input types ─────────────────────────────────────────────────────────────
 
@@ -126,12 +127,47 @@ export interface TimeCostInput {
   period: Period;
 }
 
+/**
+ * Cost computation for GPU-hour pricing.
+ * Covers dedicated GPU instances for training, fine-tuning, and batch inference.
+ *
+ * @example A100 80GB training run: 24 hours × $3.20/GPU-hour × 8 GPUs = $614.40
+ */
+export interface GpuCostInput {
+  pricingUnit: "per_gpu_hour";
+
+  /** Number of GPU-hours consumed (may be fractional). */
+  gpuHours: number;
+
+  /** Number of GPUs in the instance (default 1 for single-GPU inference). */
+  gpuCount?: number;
+
+  /** Price per GPU-hour (decimal string, e.g. "3.20"). */
+  pricePerGpuHour: string;
+
+  /**
+   * Workload type — drives labeling in breakdown; no cost impact.
+   * Allows practitioners to distinguish training from inference spend.
+   */
+  workloadType: "training" | "inference" | "fine-tuning" | "embedding";
+
+  /** GPU model identifier for audit trail (e.g. "A100-80GB", "H100", "T4"). */
+  gpuType?: string;
+
+  /** ISO 4217 currency code. */
+  currency: string;
+
+  /** Billing period. */
+  period: Period;
+}
+
 /** Union of all AI cost input shapes. */
 export type AiCostInput =
   | TokenCostInput
   | ImageCostInput
   | RequestCostInput
-  | TimeCostInput;
+  | TimeCostInput
+  | GpuCostInput;
 
 // ─── Output types ─────────────────────────────────────────────────────────────
 

@@ -2,6 +2,7 @@ import { Decimal, toOutputString } from "@ficecal/core-economics";
 import type {
   AiCostResult,
   CostLineItem,
+  GpuCostInput,
   ImageCostInput,
   RequestCostInput,
   TimeCostInput,
@@ -213,5 +214,36 @@ export function computeTimeCost(input: TimeCostInput): AiCostResult {
     formulasApplied: ["unit.timeCost"],
     computedAt: new Date().toISOString(),
     warnings: [],
+  };
+}
+
+// ─── GPU cost ─────────────────────────────────────────────────────────────────
+
+/**
+ * Computes cost for GPU-hour pricing.
+ * totalCost = gpuHours × gpuCount × pricePerGpuHour
+ */
+export function computeGpuCost(input: GpuCostInput): AiCostResult {
+  const hours = new Decimal(input.gpuHours);
+  const count = new Decimal(input.gpuCount ?? 1);
+  const rate  = new Decimal(input.pricePerGpuHour);
+  const total = hours.mul(count).mul(rate);
+
+  return {
+    pricingUnit:  "per_gpu_hour",
+    totalCost:    toOutputString(total),
+    currency:     input.currency,
+    period:       input.period,
+    breakdown: [
+      {
+        label:    `${input.workloadType} · ${input.gpuType ?? "GPU"} × ${input.gpuCount ?? 1}`,
+        quantity: input.gpuHours,
+        unitCost: toOutputString(rate),
+        subtotal: toOutputString(total),
+      },
+    ],
+    formulasApplied: ["ai.gpu.cost.v1"],
+    computedAt:      new Date().toISOString(),
+    warnings:        [],
   };
 }
