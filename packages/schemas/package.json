@@ -1,0 +1,19 @@
+{
+  "name": "@ficecal/schemas",
+  "version": "2.0.0",
+  "description": "FiceCal v2 canonical data schemas — NormalizedCostRecord (FOCUS 1.3), model catalog",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./normalized-cost-record": "./normalized-cost-record/index.ts",
+    "./model-catalog": "./model-catalog/index.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "~5.4.5",
+    "vitest": "^2.0.0"
+  }
+}

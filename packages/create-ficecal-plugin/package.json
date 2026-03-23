@@ -1,0 +1,21 @@
+{
+  "name": "create-ficecal-plugin",
+  "version": "1.0.0",
+  "description": "FiceCal v2 Phase 8 — scaffold a community plugin with `npx create-ficecal-plugin`",
+  "type": "module",
+  "bin": {
+    "create-ficecal-plugin": "./src/cli.ts"
+  },
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "~5.4.5",
+    "vitest": "^2.0.0"
+  }
+}

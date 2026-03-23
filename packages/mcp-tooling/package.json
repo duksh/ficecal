@@ -11,11 +11,16 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@ficecal/contracts": "workspace:*",
     "@ficecal/feature-registry": "workspace:*",
     "@ficecal/core-economics": "workspace:*",
     "@ficecal/ai-token-economics": "workspace:*",
     "@ficecal/health-score": "workspace:*",
     "@ficecal/recommendation-module": "workspace:*",
+    "@ficecal/finops-assessment": "workspace:*",
+    "@ficecal/billing-ai-providers": "workspace:*",
+    "@ficecal/schemas": "workspace:*",
+    "@ficecal/carbon-economics": "workspace:*",
     "decimal.js": "^10.4.3"
   },
   "devDependencies": {

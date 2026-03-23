@@ -1,0 +1,17 @@
+{
+  "name": "@ficecal/plugin-registry-client",
+  "version": "1.0.0",
+  "description": "FiceCal v2 Phase 8 — community plugin registry client. Fetches the duksh/ficecal-plugin-registry index from GitHub, verifies bundle integrity with SHA-256, and provides browsing + install-readiness APIs.",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "~5.4.5",
+    "vitest": "^2.0.0"
+  }
+}
