@@ -12,17 +12,9 @@
 //
 // Phase 11: implement signed-catalog verification before loading remote URLs.
 
-import { readFileSync } from "fs";
-import { fileURLToPath } from "url";
-import path from "path";
 import type { ModelPricingReference } from "@ficecal/schemas/model-catalog";
-
-// ─── Bundled fixture path ─────────────────────────────────────────────────────
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-// Works for both tsx (src/plugins/) and tsc (dist/plugins/) — both are 2 dirs
-// below the service root, so ../../fixtures resolves to services/mcp/fixtures/.
-const BUNDLED_FIXTURE_PATH = path.resolve(__dirname, "../../fixtures/model-pricing-catalog.json");
+// Static import so tsup/tsx can inline the JSON — no runtime path resolution needed.
+import catalogFixture from "../../fixtures/model-pricing-catalog.json" with { type: "json" };
 
 // ─── Loader ───────────────────────────────────────────────────────────────────
 
@@ -71,10 +63,8 @@ export async function loadModelPricingCatalog(): Promise<{
     }
   }
 
-  // ── Bundled fixture ────────────────────────────────────────────────────────
-  const raw  = readFileSync(BUNDLED_FIXTURE_PATH, "utf-8");
-  const json = JSON.parse(raw) as unknown;
-  const catalog = validateCatalog(json);
+  // ── Bundled fixture (statically imported — works in both dev and bundled prod) ─
+  const catalog = validateCatalog(catalogFixture);
   const sourceVersion = deriveSourceVersion(catalog);
   if (process.env["NODE_ENV"] !== "test") {
     console.log(

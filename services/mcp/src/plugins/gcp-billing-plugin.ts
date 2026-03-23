@@ -23,7 +23,7 @@
 
 import type { FicecalPlugin, BillingPeriodSummary } from "@ficecal/plugin-api";
 import type { BillingLineItem } from "@ficecal/plugin-api";
-import gcpFixture from "../../../../packages/schemas/fixtures/gcp-billing-fixture.json" assert { type: "json" };
+import gcpFixture from "../../../../packages/schemas/fixtures/gcp-billing-fixture.json" with { type: "json" };
 
 const data = gcpFixture.data as BillingPeriodSummary;
 

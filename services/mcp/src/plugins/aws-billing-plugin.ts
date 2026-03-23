@@ -18,7 +18,7 @@
 
 import type { FicecalPlugin, BillingPeriodSummary } from "@ficecal/plugin-api";
 import type { BillingLineItem } from "@ficecal/plugin-api";
-import awsFixture from "../../../../packages/schemas/fixtures/aws-billing-fixture.json" assert { type: "json" };
+import awsFixture from "../../../../packages/schemas/fixtures/aws-billing-fixture.json" with { type: "json" };
 
 // Lazy-import the SDK types to avoid cold-start cost in deterministic mode
 import type {

@@ -8,30 +8,31 @@
   "scripts": {
     "dev": "node --import tsx/esm src/server.ts",
     "start": "node dist/server.js",
-    "build": "tsc --project tsconfig.json",
-    "typecheck": "tsc --noEmit",
+    "build": "tsup",
+    "typecheck": "tsc --project tsconfig.json --noEmit",
     "test": "vitest run",
     "test:watch": "vitest"
   },
   "dependencies": {
     "@aws-sdk/client-cost-explorer": "^3.1014.0",
     "@azure/identity": "^4.4.1",
-    "@google-cloud/bigquery": "^7.9.1",
     "@fastify/cors": "^9.0.1",
     "@ficecal/ai-token-economics": "workspace:*",
+    "@ficecal/billing-ai-providers": "workspace:*",
     "@ficecal/core-economics": "workspace:*",
     "@ficecal/economics-module": "workspace:*",
     "@ficecal/health-score": "workspace:*",
-    "@ficecal/billing-ai-providers": "workspace:*",
-    "@ficecal/schemas": "workspace:*",
     "@ficecal/mcp-tooling": "workspace:*",
     "@ficecal/plugin-api": "workspace:*",
     "@ficecal/recommendation-module": "workspace:*",
+    "@ficecal/schemas": "workspace:*",
+    "@google-cloud/bigquery": "^7.9.1",
     "fastify": "^4.28.1",
     "zod": "^3.23.8"
   },
   "devDependencies": {
     "@types/node": "^20.12.0",
+    "tsup": "^8.5.1",
     "tsx": "^4.11.0",
     "typescript": "^5.4.0",
     "vitest": "^1.6.0"

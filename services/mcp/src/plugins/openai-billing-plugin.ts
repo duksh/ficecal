@@ -5,7 +5,7 @@
 // Live mode (OpenAI Usage API): deferred to Phase 7+.
 
 import type { FicecalPlugin, BillingPeriodSummary } from "@ficecal/plugin-api";
-import openaiFixture from "../../../../packages/schemas/fixtures/openai-billing-fixture.json" assert { type: "json" };
+import openaiFixture from "../../../../packages/schemas/fixtures/openai-billing-fixture.json" with { type: "json" };
 
 const data = openaiFixture.data as BillingPeriodSummary;
 
