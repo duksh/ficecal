@@ -13,6 +13,8 @@ import { HealthDashboard } from "./components/HealthDashboard.js";
 import { ArchitectPanel } from "./components/ArchitectPanel.js";
 import { NavBar } from "./components/NavBar.js";
 import { ScenarioBar } from "./components/ScenarioBar.js";
+import { AdminPanel } from "./components/AdminPanel.js";
+import { IntelligencePanel } from "./components/IntelligencePanel.js";
 import type { AiCostResult } from "@ficecal/ai-token-economics";
 import type { DemoScenario } from "@ficecal/demo-scenarios";
 
@@ -24,7 +26,7 @@ const DEFAULT_CONTEXT: SharedContext = {
 };
 
 export function App() {
-  const { theme, i18n, preferences } = useUiFoundation();
+  const { theme, i18n, preferences, pluginHost } = useUiFoundation();
 
   const [context, setContext] = useState<SharedContext>(DEFAULT_CONTEXT);
   const [economicsResult, setEconomicsResult] = useState<AiCostResult | null>(null);
@@ -66,7 +68,7 @@ export function App() {
           </p>
         </div>
         <div className="hero-meta">
-          <span className="phase-tag">Phase 4 complete</span>
+          <span className="phase-tag">Phase 10 — Intelligence Layer · AI Routing · Anomaly Detection · FOCUS 1.3</span>
           <span className="phase-tag phase-tag--muted">decimal.js 28dp</span>
           <span className="phase-tag phase-tag--muted">formula-traced</span>
         </div>
@@ -103,11 +105,21 @@ export function App() {
         <section id="architect" className="anchor-section">
           <ArchitectPanel context={context} />
         </section>
+
+        {/* ── Intelligence panel ───────────────────────────────────────────── */}
+        <section id="intelligence" className="anchor-section">
+          <IntelligencePanel context={context} />
+        </section>
+
+        {/* ── Admin panel ──────────────────────────────────────────────────── */}
+        <section id="admin" className="anchor-section">
+          <AdminPanel pluginHost={pluginHost} />
+        </section>
       </main>
 
       <footer className="footer">
         <p>
-          {i18n.t("ui.title")} v2 · Phase 4 complete · All arithmetic via{" "}
+          {i18n.t("ui.title")} v2 · Phase 10 · All arithmetic via{" "}
           <code>decimal.js</code> (28dp) · formula-traced
         </p>
       </footer>

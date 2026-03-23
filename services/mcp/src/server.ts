@@ -11,6 +11,7 @@
 import Fastify from "fastify";
 import cors from "@fastify/cors";
 import { registerMcpRoutes } from "./transport/index.js";
+import { initializeCatalog } from "./transport/registry.js";
 
 const PORT = Number(process.env["MCP_PORT"] ?? 4001);
 const HOST = process.env["MCP_HOST"] ?? "127.0.0.1";
@@ -52,6 +53,11 @@ export async function buildApp() {
     }
   });
 
+  // ── Pricing oracle bootstrap ───────────────────────────────────────────────
+  // Must run before registerMcpRoutes (which calls getToolRegistry()) so that
+  // module-level catalog variables are populated before the registry is built.
+  await initializeCatalog();
+
   // ── MCP routes ────────────────────────────────────────────────────────────
   await registerMcpRoutes(app);
 
@@ -82,5 +88,19 @@ if (isMain) {
   } catch (err) {
     app.log.error(err);
     process.exit(1);
+  }
+
+  // ── Pricing catalog refresh ────────────────────────────────────────────────
+  const refreshMs = Number(process.env["MCP_CATALOG_REFRESH_INTERVAL_MS"] ?? 21_600_000);
+  if (refreshMs > 0) {
+    setInterval(async () => {
+      app.log.info(`[ficecal:catalog] refreshing pricing catalog…`);
+      try {
+        await initializeCatalog();
+        app.log.info(`[ficecal:catalog] pricing catalog refreshed successfully`);
+      } catch (err) {
+        app.log.warn(`[ficecal:catalog] pricing catalog refresh failed: ${err instanceof Error ? err.message : String(err)}`);
+      }
+    }, refreshMs).unref(); // .unref() so the timer doesn't prevent process exit
   }
 }
