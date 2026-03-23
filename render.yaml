@@ -1,0 +1,32 @@
+# render.yaml — FiceCal v2 Render.com service definitions
+# Docs: https://render.com/docs/render-yaml-ref
+#
+# Deploy: connect duksh/ficecal repo in Render dashboard → "Apply from render.yaml"
+# Secrets (AWS keys, etc.) must be added manually in the Render dashboard — never here.
+
+services:
+  - type: web
+    name: ficecal-mcp
+    runtime: node
+    region: oregon
+    branch: develop
+    buildCommand: >-
+      corepack enable &&
+      pnpm install --frozen-lockfile &&
+      pnpm -r run --if-present build &&
+      cd services/mcp &&
+      pnpm build
+    startCommand: node services/mcp/dist/server.js
+    healthCheckPath: /mcp/v1/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: INGEST_MODE
+        value: fixture
+      - key: LOG_LEVEL
+        value: info
+      - key: CORS_ORIGIN
+        value: https://duksh.github.io
+      - key: MCP_CATALOG_REFRESH_INTERVAL_MS
+        value: "21600000"
+    # PORT and HOST are injected automatically by Render — do not add them here.

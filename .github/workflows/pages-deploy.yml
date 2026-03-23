@@ -1,8 +1,8 @@
-name: Deploy Public UI (GitHub Pages)
+name: Deploy FiceCal v2 (GitHub Pages)
 
 on:
   push:
-    branches: [main]
+    branches: [main, develop]
   workflow_dispatch:
 
 permissions:
@@ -29,90 +29,29 @@ jobs:
           node-version: '22'
 
       - name: Configure Pages
+        id: pages
         uses: actions/configure-pages@v5
 
-      - name: Install dependencies (if available)
-        shell: bash
+      - name: Install dependencies
         run: |
-          if [ -f pnpm-lock.yaml ]; then
-            corepack enable
-            pnpm install --frozen-lockfile
-          elif [ -f package-lock.json ]; then
-            npm ci
-          elif [ -f package.json ]; then
-            npm install
-          else
-            echo "No package metadata found. Skipping install."
-          fi
+          corepack enable
+          pnpm install --frozen-lockfile
 
-      - name: Build web app (if scripts exist)
-        shell: bash
+      - name: Build workspace packages (excluding web app)
+        run: pnpm -r run --if-present build --filter='!@ficecal/web'
+
+      - name: Build web app
+        env:
+          VITE_BASE_URL: ${{ steps.pages.outputs.base_path }}/
+          VITE_MCP_BASE_URL: ${{ vars.VITE_MCP_BASE_URL }}
         run: |
-          if [ -f pnpm-lock.yaml ]; then
-            pnpm -r build --if-present
-            if [ -f package.json ]; then
-              pnpm build --if-present
-            fi
-          elif [ -f package.json ]; then
-            npm run build --if-present
-          else
-            echo "No build metadata found."
-          fi
-
-      - name: Resolve static site directory
-        id: site
-        shell: bash
-        run: |
-          set -e
-          site_dir=""
-          for d in apps/web/dist apps/web/build apps/web/out dist build out; do
-            if [ -d "$d" ]; then
-              site_dir="$d"
-              break
-            fi
-          done
-
-          if [ -z "$site_dir" ]; then
-            echo "No static output directory found. Generating fallback site."
-            mkdir -p .github/pages-fallback
-            printf '%s\n' \
-              '<!doctype html>' \
-              '<html lang="en">' \
-              '<head>' \
-              '  <meta charset="utf-8" />' \
-              '  <meta name="viewport" content="width=device-width, initial-scale=1" />' \
-              '  <title>FiceCal</title>' \
-              '  <style>' \
-              "    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; margin: 2rem; line-height: 1.5; }" \
-              '    main { max-width: 720px; margin: 0 auto; }' \
-              '    code { background: #f3f4f6; padding: 0.1rem 0.3rem; border-radius: 4px; }' \
-              '  </style>' \
-              '</head>' \
-              '<body>' \
-              '  <main>' \
-              '    <h1>FiceCal</h1>' \
-              '    <p>Public UI bootstrap is active.</p>' \
-              '    <p>No built frontend artifact was found in this run. Expected one of <code>apps/web/dist</code>, <code>apps/web/build</code>, <code>apps/web/out</code>, <code>dist</code>, <code>build</code>, or <code>out</code>.</p>' \
-              '  </main>' \
-              '</body>' \
-              '</html>' \
-              > .github/pages-fallback/index.html
-            site_dir=".github/pages-fallback"
-          fi
-
-          echo "site_dir=$site_dir" >> "$GITHUB_OUTPUT"
-
-      - name: Prepare Pages artifact
-        shell: bash
-        run: |
-          rm -rf _site
-          mkdir -p _site
-          cp -R "${{ steps.site.outputs.site_dir }}/." _site/
+          cd apps/web
+          pnpm build
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: _site
+          path: apps/web/dist
 
   deploy:
     if: ${{ github.event_name == 'workflow_dispatch' || vars.ENABLE_PAGES_DEPLOY == 'true' }}

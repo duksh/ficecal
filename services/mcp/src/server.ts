@@ -13,8 +13,10 @@ import cors from "@fastify/cors";
 import { registerMcpRoutes } from "./transport/index.js";
 import { initializeCatalog } from "./transport/registry.js";
 
-const PORT = Number(process.env["MCP_PORT"] ?? 4001);
-const HOST = process.env["MCP_HOST"] ?? "127.0.0.1";
+// Render.com injects PORT; MCP_PORT is the local-dev override.
+// HOST must be 0.0.0.0 in production so the platform router can reach the process.
+const PORT = Number(process.env["PORT"] ?? process.env["MCP_PORT"] ?? 4001);
+const HOST = process.env["MCP_HOST"] ?? (process.env["NODE_ENV"] === "production" ? "0.0.0.0" : "127.0.0.1");
 const LOG_LEVEL = process.env["LOG_LEVEL"] ?? "info";
 
 /**
