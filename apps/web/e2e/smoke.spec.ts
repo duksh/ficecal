@@ -65,7 +65,8 @@ test.describe("FiceCal v2 smoke evidence", () => {
     await page.goto("/");
     const section = page.locator("#carbon");
     await expect(section).toBeVisible();
-    await expect(page.getByText("Carbon Footprint")).toBeVisible();
+    // Use heading locator to avoid strict-mode error (text appears in both h2 and body)
+    await expect(section.locator("h2").filter({ hasText: "Carbon Footprint" })).toBeVisible();
   });
 
   test("Intelligence panel section is present", async ({ page }) => {
