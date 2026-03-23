@@ -10,7 +10,7 @@
 //   (default)               →  ingestMode: "deterministic" (fixture data)
 //
 // Credentials (live mode):
-//   Standard AWS credential chain — set via env vars, ~/.aws/credentials,
+//   Standard AWS credential chain — set via env vars, $HOME/.aws/credentials,
 //   IMDS, or IAM role. Required IAM action: ce:GetCostAndUsage.
 //
 // The `live-billing` feature flag gates user-facing exposure of the live mode

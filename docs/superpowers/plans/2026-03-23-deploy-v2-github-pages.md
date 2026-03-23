@@ -51,7 +51,7 @@ Before changing anything, confirm the existing build chain works end-to-end.
 - [ ] **Step 1.1: Build all workspace packages**
 
 ```bash
-cd /Users/duksh/MyDev-00/ficecal
+cd $(git rev-parse --show-toplevel)
 pnpm -r build --if-present 2>&1 | tail -40
 ```
 
@@ -60,7 +60,7 @@ Expected: all packages build without error. If a package fails, fix that TypeScr
 - [ ] **Step 1.2: Build the web app**
 
 ```bash
-cd /Users/duksh/MyDev-00/ficecal/apps/web
+cd $(git rev-parse --show-toplevel)/apps/web
 pnpm build 2>&1 | tail -20
 ```
 
@@ -69,7 +69,7 @@ Expected: ends with `✓ built in X.XXs` and `apps/web/dist/` is created.
 - [ ] **Step 1.3: Build the MCP service**
 
 ```bash
-cd /Users/duksh/MyDev-00/ficecal/services/mcp
+cd $(git rev-parse --show-toplevel)/services/mcp
 pnpm build 2>&1 | tail -20
 ```
 
@@ -97,7 +97,7 @@ Render.com (and most PaaS platforms) inject `PORT` as the env var the process mu
 cat > /tmp/test-render-compat.mjs << 'EOF'
 // Quick smoke: confirm server starts on PORT env var and 0.0.0.0
 // Run AFTER the fix; run now to confirm it fails first.
-import { buildApp } from '/Users/duksh/MyDev-00/ficecal/services/mcp/src/server.ts';
+import { buildApp } from '$(git rev-parse --show-toplevel)/services/mcp/src/server.ts';
 // If HOST is still 127.0.0.1, the app won't respond to external probes.
 // This check is conceptual — actual verification is the Render health check.
 console.log("PORT env check:", process.env.PORT ?? "not set");
@@ -127,7 +127,7 @@ const HOST = process.env["MCP_HOST"] ?? (process.env["NODE_ENV"] === "production
 - [ ] **Step 2.3: Rebuild MCP service to confirm it compiles**
 
 ```bash
-cd /Users/duksh/MyDev-00/ficecal/services/mcp
+cd $(git rev-parse --show-toplevel)/services/mcp
 pnpm build 2>&1 | tail -10
 ```
 
@@ -136,7 +136,7 @@ Expected: `✓` no TypeScript errors.
 - [ ] **Step 2.4: Smoke test the server starts and responds locally**
 
 ```bash
-cd /Users/duksh/MyDev-00/ficecal/services/mcp
+cd $(git rev-parse --show-toplevel)/services/mcp
 # Start in background
 node --import tsx/esm src/server.ts &
 MCP_PID=$!
@@ -152,7 +152,7 @@ Expected: JSON response with `{"version":...,"phase":...,"tools":...}`
 - [ ] **Step 2.5: Commit**
 
 ```bash
-cd /Users/duksh/MyDev-00/ficecal
+cd $(git rev-parse --show-toplevel)
 git add services/mcp/src/server.ts
 git commit -m "$(cat <<'EOF'
 fix(mcp): bind to PORT+0.0.0.0 for Render.com compatibility
@@ -223,7 +223,7 @@ python3 -c "import yaml,sys; yaml.safe_load(open('render.yaml'))" && echo "✅ r
 - [ ] **Step 3.3: Commit**
 
 ```bash
-cd /Users/duksh/MyDev-00/ficecal
+cd $(git rev-parse --show-toplevel)
 git add render.yaml
 git commit -m "$(cat <<'EOF'
 ci(render): add render.yaml for MCP service deployment
@@ -267,7 +267,7 @@ chmod +x /tmp/check-base.sh
 - [ ] **Step 4.2: Run check — confirm it fails now (expected)**
 
 ```bash
-cd /Users/duksh/MyDev-00/ficecal && bash /tmp/check-base.sh
+cd $(git rev-parse --show-toplevel) && bash /tmp/check-base.sh
 ```
 
 Expected: `❌ Base path /ficecal/ NOT found` — correct, this is the gap.
@@ -301,14 +301,14 @@ export default defineConfig({
 - [ ] **Step 4.4: Rebuild with the env var to verify fix**
 
 ```bash
-cd /Users/duksh/MyDev-00/ficecal/apps/web
+cd $(git rev-parse --show-toplevel)/apps/web
 VITE_BASE_URL=/ficecal/ pnpm build 2>&1 | tail -10
 ```
 
 - [ ] **Step 4.5: Run check — confirm it passes now**
 
 ```bash
-cd /Users/duksh/MyDev-00/ficecal && bash /tmp/check-base.sh
+cd $(git rev-parse --show-toplevel) && bash /tmp/check-base.sh
 ```
 
 Expected: `✅ Base path /ficecal/ confirmed in dist/index.html`
@@ -316,7 +316,7 @@ Expected: `✅ Base path /ficecal/ confirmed in dist/index.html`
 - [ ] **Step 4.6: Commit**
 
 ```bash
-cd /Users/duksh/MyDev-00/ficecal
+cd $(git rev-parse --show-toplevel)
 git add apps/web/vite.config.ts
 git commit -m "$(cat <<'EOF'
 fix(web): add env-driven base path for GitHub Pages subdirectory
@@ -431,7 +431,7 @@ python3 -c "import yaml,sys; yaml.safe_load(open('.github/workflows/pages-deploy
 - [ ] **Step 5.3: Commit**
 
 ```bash
-cd /Users/duksh/MyDev-00/ficecal
+cd $(git rev-parse --show-toplevel)
 git add .github/workflows/pages-deploy.yml
 git commit -m "$(cat <<'EOF'
 ci(pages): wire v2 full-stack deploy from develop branch
@@ -518,7 +518,7 @@ Expected: JSON with `version`, `phase`, `tools` fields. If Render is cold-starti
 3. Update your local remote:
 
 ```bash
-cd /Users/duksh/MyDev-00/ficecal
+cd $(git rev-parse --show-toplevel)
 git remote set-url origin https://github.com/duksh/ficecal.git
 git remote -v   # confirm the new URL
 ```
@@ -543,7 +543,7 @@ git remote -v   # confirm the new URL
 - [ ] **Step 8.1: Push develop to origin**
 
 ```bash
-cd /Users/duksh/MyDev-00/ficecal
+cd $(git rev-parse --show-toplevel)
 git push origin develop
 ```
 
@@ -609,7 +609,7 @@ Open `https://duksh.github.io/ficecal/` in Chrome/Firefox. Check:
 - [ ] **Step 9.2: Commit and push**
 
 ```bash
-cd /Users/duksh/MyDev-00/ficecal
+cd $(git rev-parse --show-toplevel)
 git add README.md
 git commit -m "docs: add v2 live URLs to README
 
