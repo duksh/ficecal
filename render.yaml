@@ -30,3 +30,30 @@ services:
       - key: MCP_CATALOG_REFRESH_INTERVAL_MS
         value: "21600000"
     # PORT and HOST are injected automatically by Render — do not add them here.
+    #
+    # ── Live billing env vars — add these manually in the Render dashboard ──────
+    # These are NOT committed here because they contain secrets or account IDs.
+    #
+    # Global live-billing switch (set to "1" to enable all live adapters):
+    #   FICECAL_LIVE_BILLING=1
+    #
+    # AWS Cost Explorer (live adapter — requires IAM ce:GetCostAndUsage):
+    #   AWS_ACCESS_KEY_ID
+    #   AWS_SECRET_ACCESS_KEY
+    #   AWS_REGION          (default: us-east-1)
+    #   AWS_ACCOUNT_ID      (optional, cosmetic — avoids an STS call)
+    #
+    # GCP BigQuery Billing Export (live adapter — requires bigquery.jobs.create +
+    #   bigquery.tables.getData on the billing export table):
+    #   GCP_BILLING_PROJECT_ID     — GCP project containing the billing dataset
+    #   GCP_BILLING_DATASET        — BigQuery dataset name (default: billing_export)
+    #   GCP_BILLING_TABLE          — table name (default: gcp_billing_export_v1)
+    #   GOOGLE_APPLICATION_CREDENTIALS — path to service account JSON (optional;
+    #                                    uses ADC / Workload Identity if not set)
+    #
+    # Azure Cost Management (live adapter — requires Cost Management Reader RBAC
+    #   role on the subscription):
+    #   AZURE_SUBSCRIPTION_ID  — Azure subscription ID
+    #   AZURE_TENANT_ID        — Azure AD tenant ID
+    #   AZURE_CLIENT_ID        — service principal app (client) ID
+    #   AZURE_CLIENT_SECRET    — service principal client secret

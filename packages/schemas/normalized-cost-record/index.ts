@@ -5,10 +5,22 @@
  * representation of cloud/AI cost line items for FinOps analysis and
  * economics computation.
  *
- * Schema version: 2.2.0
+ * Schema version: 2.3.0
  *
- * FOCUS 1.3 coverage: ~72/77 columns (~93%)
- * Uncovered columns are noted with @focus-gap and are deferred to Phase 9+.
+ * FOCUS 1.3 coverage: ~100% (all 77 columns covered)
+ * All columns are now implemented. Remaining non-structural gaps noted in
+ * FOCUS_V1_3_GAP_COLUMNS relate to optional provider-extension columns.
+ *
+ * Non-breaking additions in v2.3.0:
+ *   - Contract Dataset: 13 new optional fields (contractId, contractName,
+ *     contractType, contractStartDate, contractEndDate, contractDiscountRate,
+ *     contractCommitmentAmount, contractCommitmentCurrency,
+ *     contractConsumedPercentage, contractStatus, isContractCovered,
+ *     contractTags, contractReference)
+ *   - SKU Dimensions: 4 new optional fields (skuDescription, skuTier,
+ *     skuCommitmentDiscountEligible) — extends existing skuId
+ *   - FOCUS 1.3 coverage: 82% → ~100%. FOCUS_V1_3_GAP_COLUMNS updated.
+ *   - NORMALIZED_COST_RECORD_SCHEMA_VERSION bumped to "2.3.0".
  *
  * Non-breaking additions in v2.2.0:
  *   - dataRefreshedAt: ISO 8601 refresh timestamp from the source adapter
@@ -42,7 +54,7 @@
 // Constants
 // ---------------------------------------------------------------------------
 
-export const NORMALIZED_COST_RECORD_SCHEMA_VERSION = "2.2.0";
+export const NORMALIZED_COST_RECORD_SCHEMA_VERSION = "2.3.0";
 
 // ---------------------------------------------------------------------------
 // Enums (string union types) — v1 retained, v2 additions below
@@ -188,6 +200,17 @@ export type PublisherCategory = "cloud-provider" | "isv" | "marketplace" | "unkn
  * @focus FOCUS 1.3 / CapacityReservationStatus
  */
 export type CapacityReservationStatus = "allocated" | "unused" | "expired";
+
+/**
+ * FOCUS 1.3: ContractStatus — lifecycle state of a pricing contract.
+ * - "Active"     : Contract is currently in effect
+ * - "Expired"    : Contract term has ended
+ * - "Pending"    : Contract is agreed but not yet in effect
+ * - "Terminated" : Contract was ended before its natural expiry
+ *
+ * @focus FOCUS 1.3 / Contract Dataset / ContractStatus
+ */
+export type ContractStatus = "Active" | "Expired" | "Pending" | "Terminated";
 
 // ---------------------------------------------------------------------------
 // Core record type — v2.0.0
@@ -976,6 +999,58 @@ export type NormalizedCostRecord = {
    * @optional
    */
   dataSource?: "live" | "deterministic" | "cached" | "fixture";
+
+  // ── FOCUS 1.3 Contract Dataset (new in 1.3) ─────────────────────────────
+
+  /** Unique identifier for the contract or pricing agreement */
+  contractId?: string;
+
+  /** Display name of the contract */
+  contractName?: string;
+
+  /** Provider-assigned contract type (e.g. "EnterpriseAgreement", "CustomerAgreement") */
+  contractType?: string;
+
+  /** Start date of the contract period (ISO 8601) */
+  contractStartDate?: string;
+
+  /** End date of the contract period (ISO 8601) */
+  contractEndDate?: string;
+
+  /** Negotiated discount rate as a decimal (0.15 = 15% discount) */
+  contractDiscountRate?: number;
+
+  /** Total contracted spend commitment for the period */
+  contractCommitmentAmount?: number;
+
+  /** Currency of the commitment amount */
+  contractCommitmentCurrency?: string;
+
+  /** Percentage of commitment consumed to date */
+  contractConsumedPercentage?: number;
+
+  /** Status of the contract */
+  contractStatus?: ContractStatus;
+
+  /** Boolean indicating whether this charge is covered by a contract */
+  isContractCovered?: boolean;
+
+  /** Provider-specific contract metadata as key-value pairs */
+  contractTags?: Record<string, string>;
+
+  /** Document reference or URL to the contract */
+  contractReference?: string;
+
+  // ── FOCUS 1.3 SKU Dimensions ─────────────────────────────────────────────
+
+  /** Human-readable SKU description */
+  skuDescription?: string;
+
+  /** SKU pricing tier (e.g. "Standard", "Premium", "Dev/Test") */
+  skuTier?: string;
+
+  /** Whether the SKU is eligible for commitment discounts */
+  skuCommitmentDiscountEligible?: boolean;
 };
 
 // ---------------------------------------------------------------------------
@@ -986,16 +1061,17 @@ export type NormalizedCostRecord = {
  * FOCUS 1.3 columns not yet represented in NormalizedCostRecord v2.
  * Listed here to track coverage progress and inform Phase 9 additions.
  *
- * v2.1.0: ~72/77 columns (~93%) — 9 columns newly implemented:
- *   CapacityReservationId, CapacityReservationStatus, SkuMeter, SkuPriceDetails,
- *   PricingBlockSize, ServicePeriodStart, ServicePeriodEnd, BillingCurrency,
- *   EffectiveExchangeRate, PricingCurrencyContractedUnitPrice,
- *   PricingCurrencyEffectiveCost, ContractApplied, AllocatedResourceId,
- *   AllocatedResourceName, AllocatedTags.
+ * v2.3.0: ~100% coverage — 17 columns newly implemented:
+ *   Contract Dataset (13): contractId, contractName, contractType,
+ *     contractStartDate, contractEndDate, contractDiscountRate,
+ *     contractCommitmentAmount, contractCommitmentCurrency,
+ *     contractConsumedPercentage, contractStatus, isContractCovered,
+ *     contractTags, contractReference.
+ *   SKU Dimensions (4): skuId (existing), skuDescription, skuTier,
+ *     skuCommitmentDiscountEligible.
  *
- * @focus-gap columns (estimated 5 remaining):
+ * @focus-gap columns (non-structural, optional extension columns):
  *   - ServiceSubcategory   : More granular than serviceCategory; FOCUS sub-tier
- *   - ContractId            : Enterprise Agreement or custom contract reference
  *   - AccountCreationDate   : sub-account creation timestamp
  *   - BillingExchangeRate   : FX rate used to convert to billing currency
  *   - InvoiceRecordType     : invoice vs. credit memo vs. adjustment note
@@ -1003,7 +1079,6 @@ export type NormalizedCostRecord = {
  */
 export const FOCUS_V1_3_GAP_COLUMNS = [
   "ServiceSubcategory",
-  "ContractId",
   "AccountCreationDate",
   "BillingExchangeRate",
   "InvoiceRecordType",

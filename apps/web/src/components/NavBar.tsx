@@ -18,25 +18,29 @@ interface NavSection {
 
 const SECTIONS: NavSection[] = [
   { id: "calculator",   label: "Calculator" },
+  { id: "commitments",  label: "Commitments" },
   { id: "health",       label: "Health" },
-  { id: "chart",        label: "Chart" },
+  { id: "carbon",       label: "Carbon" },
   { id: "architect",    label: "Architect" },
   { id: "intelligence", label: "Intelligence" },
-  { id: "admin",        label: "Admin" },
 ];
+
+const ADMIN_SECTION: NavSection = { id: "admin", label: "Admin" };
 
 interface Props {
   theme: ThemeManager;
   i18n: LocalizationShell;
+  adminEnabled?: boolean;
 }
 
-export function NavBar({ theme, i18n }: Props) {
+export function NavBar({ theme, i18n, adminEnabled = false }: Props) {
   const [activeSection, setActiveSection] = useState<string>("calculator");
+  const visibleSections = adminEnabled ? [...SECTIONS, ADMIN_SECTION] : SECTIONS;
 
   useEffect(() => {
     const observers: IntersectionObserver[] = [];
 
-    SECTIONS.forEach(({ id }) => {
+    visibleSections.forEach(({ id }) => {
       const el = document.getElementById(id);
       if (!el) return;
 
@@ -65,7 +69,7 @@ export function NavBar({ theme, i18n }: Props) {
       </div>
 
       <ul className="navbar-links" role="list">
-        {SECTIONS.map(({ id, label }) => (
+        {visibleSections.map(({ id, label }) => (
           <li key={id}>
             <button
               className={`navbar-link${activeSection === id ? " is-active" : ""}`}

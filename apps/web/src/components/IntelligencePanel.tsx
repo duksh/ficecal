@@ -61,7 +61,7 @@ interface ModelAlternative {
   notes: string;
 }
 
-interface RoutingOpportunity {
+export interface RoutingOpportunity {
   sourceModelId: string;
   sourceProvider: string;
   sourceDisplayName: string;
@@ -71,7 +71,7 @@ interface RoutingOpportunity {
   bestAlternativeSaving: string;
 }
 
-interface RoutingOutput {
+export interface RoutingOutput {
   opportunities: RoutingOpportunity[];
   totalEstimatedMonthlySaving: string;
   modelsAnalysed: number;
@@ -171,14 +171,39 @@ interface Props {
   context: SharedContext;
   /** Current app mode — when it changes, an auto-trigger indicator is shown. */
   mode?: string;
+  /** Called with routing optimize output so ArchitectPanel can display it. */
+  onRoutingResult?: (output: RoutingOutput | null) => void;
 }
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
-export function IntelligencePanel({ context, mode }: Props) {
+// ─── MCP health + catalog freshness ─────────────────────────────────────────
+
+interface McpHealth {
+  version: string;
+  phase: number;
+  tools: number;
+  catalogVersion?: string;
+}
+
+async function fetchHealth(): Promise<McpHealth> {
+  const res = await fetch(`${MCP_BASE}/mcp/v1/health`);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json() as Promise<McpHealth>;
+}
+
+// ─── Component ───────────────────────────────────────────────────────────────
+
+export function IntelligencePanel({ context, mode, onRoutingResult }: Props) {
   const [routing,     setRouting]     = useState<AsyncState<RoutingOutput>>({ status: "idle" });
   const [anomaly,     setAnomaly]     = useState<AsyncState<AnomalyOutput>>({ status: "idle" });
   const [correlation, setCorrelation] = useState<AsyncState<CorrelationOutput>>({ status: "idle" });
+  const [health,      setHealth]      = useState<McpHealth | null>(null);
+
+  // Fetch health + catalog version on mount for freshness indicator
+  useEffect(() => {
+    fetchHealth().then(setHealth).catch(() => { /* service offline — silent */ });
+  }, []);
 
   // ── Mode-change tracking (U2) ────────────────────────────────────────────
   const [lastAnalyzedMode, setLastAnalyzedMode] = useState<string | undefined>(mode);
@@ -240,11 +265,13 @@ export function IntelligencePanel({ context, mode }: Props) {
       }),
     ]);
 
-    setRouting(
+    const routingState: AsyncState<RoutingOutput> =
       routeResult.status === "fulfilled"
         ? { status: "ok",    data:    routeResult.value }
-        : { status: "error", message: routeResult.reason instanceof Error ? routeResult.reason.message : "Failed" }
-    );
+        : { status: "error", message: routeResult.reason instanceof Error ? routeResult.reason.message : "Failed" };
+    setRouting(routingState);
+    // Lift routing result up so ArchitectPanel can display model routing opportunities
+    onRoutingResult?.(routeResult.status === "fulfilled" ? routeResult.value : null);
     setAnomaly(
       anomalyResult.status === "fulfilled"
         ? { status: "ok",    data:    anomalyResult.value }
@@ -280,9 +307,21 @@ export function IntelligencePanel({ context, mode }: Props) {
       {/* ── Header ──────────────────────────────────────────────────────────── */}
       <div className="panel intel-header">
         <div className="panel-header">
-          <h2>Intelligence</h2>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", flexWrap: "wrap" }}>
+            <h2 style={{ margin: 0 }}>Intelligence</h2>
+            {health && (
+              <span
+                className="phase-tag phase-tag--muted"
+                title={`MCP service v${health.version} · ${health.tools} tools`}
+                style={{ fontSize: "0.72rem" }}
+              >
+                🟢 MCP {health.version}
+                {health.catalogVersion ? ` · catalog ${health.catalogVersion}` : ""}
+              </span>
+            )}
+          </div>
           <p className="hint">
-            Phase 10A · AI model routing · Spend anomaly detection · Assessment correlation
+            Phase 12 · AI model routing · Spend anomaly detection · Assessment correlation
           </p>
         </div>
         <div className="intel-meta-row">

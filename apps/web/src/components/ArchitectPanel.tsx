@@ -1,26 +1,11 @@
 import type { SharedContext } from "../types.js";
-
-// ─── Routing opportunity shape (mirrors BillingRoutingOptimizeOutput) ─────────
-
-interface RoutingOpportunity {
-  fromModel: string;
-  toModel: string;
-  estimatedMonthlySaving: number;
-  confidenceScore: number;
-  reason: string;
-  currency: string;
-}
-
-interface RoutingOptimizeOutput {
-  opportunities: RoutingOpportunity[];
-  summary?: { totalMonthlySaving: number; opportunityCount: number; currency: string };
-}
+import type { RoutingOutput } from "./IntelligencePanel.js";
 
 interface Props {
   context: SharedContext;
   /** When provided, renders a "Model Routing Opportunities" section derived from
    *  the billing.routing.optimize MCP tool output. Pass null to hide. */
-  routingOptimizeOutput?: RoutingOptimizeOutput | null;
+  routingOptimizeOutput?: RoutingOutput | null;
 }
 
 const PACKAGE_GRAPH = [
@@ -140,43 +125,49 @@ export function ArchitectPanel({ context, routingOptimizeOutput }: Props) {
               Run billing.routing.optimize to see model swap opportunities.
             </p>
           ) : (
-            <ul className="adr-list">
-              {routingOptimizeOutput.opportunities.slice(0, 3).map((opp, idx) => (
-                <li key={idx} className="adr-item" style={{ flexWrap: "wrap", gap: "0.4rem" }}>
-                  <span style={{ fontFamily: "monospace", fontSize: "0.82rem" }}>
-                    {opp.fromModel}
-                  </span>
-                  <span style={{ color: "var(--fc-text-muted)" }}>→</span>
-                  <span style={{ fontFamily: "monospace", fontSize: "0.82rem" }}>
-                    {opp.toModel}
-                  </span>
-                  <span
-                    className="admin-badge"
-                    style={{
-                      fontSize: "0.72rem",
-                      background: "var(--fc-accent-muted, #dbeafe)",
-                      color: "var(--fc-accent, #1d4ed8)",
-                      border: "1px solid var(--fc-accent, #3b82f6)",
-                    }}
-                    title={`Confidence: ${(opp.confidenceScore * 100).toFixed(0)}%`}
-                  >
-                    {(opp.confidenceScore * 100).toFixed(0)}% confidence
-                  </span>
-                  <span style={{ color: "var(--fc-ok)", fontWeight: 600 }}>
-                    ${opp.estimatedMonthlySaving.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/mo
-                  </span>
-                  <span
-                    className="hint"
-                    style={{ width: "100%", marginTop: "0.15rem", fontSize: "0.78rem" }}
-                    title={opp.reason}
-                  >
-                    {opp.reason.length > 60
-                      ? opp.reason.slice(0, 60) + "…"
-                      : opp.reason}
-                  </span>
-                </li>
-              ))}
-            </ul>
+            <>
+              <p className="hint" style={{ color: "var(--fc-text-muted)", marginBottom: "0.75rem", fontSize: "0.82rem" }}>
+                {routingOptimizeOutput.opportunitiesFound} opportunit{routingOptimizeOutput.opportunitiesFound === 1 ? "y" : "ies"} found ·{" "}
+                estimated{" "}
+                <strong style={{ color: "var(--fc-ok)" }}>
+                  {routingOptimizeOutput.totalEstimatedMonthlySaving} /mo
+                </strong>
+              </p>
+              <ul className="adr-list">
+                {routingOptimizeOutput.opportunities.slice(0, 3).map((opp, idx) => {
+                  const best = opp.alternatives[0];
+                  return (
+                    <li key={idx} className="adr-item" style={{ flexWrap: "wrap", gap: "0.4rem" }}>
+                      <span style={{ fontFamily: "monospace", fontSize: "0.82rem" }}>
+                        {opp.sourceDisplayName}
+                      </span>
+                      {best && (
+                        <>
+                          <span style={{ color: "var(--fc-text-muted)" }}>→</span>
+                          <span style={{ fontFamily: "monospace", fontSize: "0.82rem" }}>
+                            {best.displayName}
+                          </span>
+                        </>
+                      )}
+                      <span style={{ color: "var(--fc-ok)", fontWeight: 600 }}>
+                        save {opp.bestAlternativeSaving}/mo
+                      </span>
+                      {best?.notes && (
+                        <span
+                          className="hint"
+                          style={{ width: "100%", marginTop: "0.15rem", fontSize: "0.78rem" }}
+                          title={best.notes}
+                        >
+                          {best.notes.length > 70
+                            ? best.notes.slice(0, 70) + "…"
+                            : best.notes}
+                        </span>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            </>
           )}
         </section>
       )}

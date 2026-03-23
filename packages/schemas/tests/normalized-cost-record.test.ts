@@ -38,6 +38,7 @@ import type {
   CommitmentDiscountStatus,
   CapacityReservationStatus,
   PublisherCategory,
+  ContractStatus,
 } from "../normalized-cost-record/index.js";
 
 // Wrapper retaining the assertion signature for backward-compatible test usage.
@@ -64,7 +65,7 @@ const MINIMAL_V2: NormalizedCostRecord = {
   amountType: "actual",
   dataCompleteness: "complete",
   ingestedAt: "2026-02-02T10:00:00Z",
-  schemaVersion: "2.1.0",
+  schemaVersion: "2.3.0",
 };
 
 /** Fully populated v2 record — all FOCUS 1.3 fields included. */
@@ -154,8 +155,8 @@ const FULL_V2: NormalizedCostRecord = {
 // ─── Schema version ───────────────────────────────────────────────────────────
 
 describe("NORMALIZED_COST_RECORD_SCHEMA_VERSION", () => {
-  it("is 2.2.0", () => {
-    expect(NORMALIZED_COST_RECORD_SCHEMA_VERSION).toBe("2.2.0");
+  it("is 2.3.0", () => {
+    expect(NORMALIZED_COST_RECORD_SCHEMA_VERSION).toBe("2.3.0");
   });
 });
 
@@ -195,6 +196,10 @@ describe("FOCUS_V1_3_GAP_COLUMNS", () => {
 
   it("no longer lists PricingBlockSize (now implemented in v2.1)", () => {
     expect(FOCUS_V1_3_GAP_COLUMNS).not.toContain("PricingBlockSize");
+  });
+
+  it("no longer lists ContractId (now implemented in v2.3 Contract Dataset)", () => {
+    expect(FOCUS_V1_3_GAP_COLUMNS).not.toContain("ContractId");
   });
 });
 
@@ -676,5 +681,109 @@ describe("NormalizedCostRecordValidationError", () => {
     const err = new NormalizedCostRecordValidationError("bad");
     expect(err.field).toBeUndefined();
     expect(err.recordId).toBeUndefined();
+  });
+});
+
+// ─── NormalizedCostRecord — FOCUS 1.3 Contract Dataset fields ────────────────
+
+describe("NormalizedCostRecord — FOCUS 1.3 Contract Dataset fields", () => {
+  it("accepts a full contract dataset record", () => {
+    const rec: NormalizedCostRecord = {
+      ...MINIMAL_V2,
+      contractId: "EA-2026-001",
+      contractName: "Enterprise Agreement 2026",
+      contractType: "EnterpriseAgreement",
+      contractStartDate: "2026-01-01",
+      contractEndDate: "2026-12-31",
+      contractDiscountRate: 0.15,
+      contractCommitmentAmount: 500000,
+      contractCommitmentCurrency: "USD",
+      contractConsumedPercentage: 0.42,
+      contractStatus: "Active",
+      isContractCovered: true,
+      contractTags: { "department": "engineering" },
+      contractReference: "https://contracts.example.com/EA-2026-001",
+      skuId: "Compute-E2-Standard-4",
+      skuDescription: "E2 standard machine with 4 vCPUs",
+      skuTier: "Standard",
+      skuCommitmentDiscountEligible: true,
+    };
+    expect(rec.contractId).toBe("EA-2026-001");
+    expect(rec.contractStatus).toBe("Active");
+    expect(rec.skuCommitmentDiscountEligible).toBe(true);
+    expect(rec.contractConsumedPercentage).toBe(0.42);
+  });
+
+  it("contractStatus accepts all valid values", () => {
+    const statuses: Array<ContractStatus> = [
+      "Active", "Expired", "Pending", "Terminated",
+    ];
+    statuses.forEach(s => {
+      const rec = { contractStatus: s } as Partial<NormalizedCostRecord>;
+      expect(rec.contractStatus).toBe(s);
+    });
+  });
+
+  it("contract fields are all optional", () => {
+    // A record with none of the contract fields should still be valid
+    const rec: NormalizedCostRecord = { ...MINIMAL_V2 };
+    expect(rec.contractId).toBeUndefined();
+    expect(rec.contractName).toBeUndefined();
+    expect(rec.contractType).toBeUndefined();
+    expect(rec.contractStartDate).toBeUndefined();
+    expect(rec.contractEndDate).toBeUndefined();
+    expect(rec.contractDiscountRate).toBeUndefined();
+    expect(rec.contractCommitmentAmount).toBeUndefined();
+    expect(rec.contractCommitmentCurrency).toBeUndefined();
+    expect(rec.contractConsumedPercentage).toBeUndefined();
+    expect(rec.contractStatus).toBeUndefined();
+    expect(rec.isContractCovered).toBeUndefined();
+    expect(rec.contractTags).toBeUndefined();
+    expect(rec.contractReference).toBeUndefined();
+    expect(rec.skuId).toBeUndefined();
+    expect(rec.skuDescription).toBeUndefined();
+    expect(rec.skuTier).toBeUndefined();
+    expect(rec.skuCommitmentDiscountEligible).toBeUndefined();
+  });
+
+  it("contractDiscountRate and contractCommitmentAmount accept numeric values", () => {
+    const rec: NormalizedCostRecord = {
+      ...MINIMAL_V2,
+      contractDiscountRate: 0.25,
+      contractCommitmentAmount: 1_000_000,
+      contractConsumedPercentage: 0.87,
+    };
+    expect(rec.contractDiscountRate).toBe(0.25);
+    expect(rec.contractCommitmentAmount).toBe(1_000_000);
+    expect(rec.contractConsumedPercentage).toBe(0.87);
+  });
+
+  it("contractTags accepts a key-value map", () => {
+    const rec: NormalizedCostRecord = {
+      ...MINIMAL_V2,
+      contractTags: { department: "engineering", costCenter: "CC-1042" },
+    };
+    expect(rec.contractTags).toEqual({ department: "engineering", costCenter: "CC-1042" });
+  });
+
+  it("SKU dimension fields are optional and independently assignable", () => {
+    const rec: NormalizedCostRecord = {
+      ...MINIMAL_V2,
+      skuDescription: "E2 standard machine with 4 vCPUs",
+      skuTier: "Premium",
+      skuCommitmentDiscountEligible: false,
+    };
+    expect(rec.skuDescription).toBe("E2 standard machine with 4 vCPUs");
+    expect(rec.skuTier).toBe("Premium");
+    expect(rec.skuCommitmentDiscountEligible).toBe(false);
+  });
+
+  it("minimal record still validates after adding contract fields", () => {
+    const rec: NormalizedCostRecord = {
+      ...MINIMAL_V2,
+      contractId: "EA-2026-001",
+      contractStatus: "Active",
+    };
+    expect(() => validateNormalizedCostRecord(rec)).not.toThrow();
   });
 });
