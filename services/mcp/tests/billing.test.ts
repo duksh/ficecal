@@ -114,9 +114,9 @@ describe("POST /mcp/v1/tools/billing.estimate.actual/call — AWS", () => {
     }
   });
 
-  it("records have focusSchemaVersion 2.2.0", async () => {
+  it("records have focusSchemaVersion 2.3.0", async () => {
     const res = await callBillingEstimate("aws");
-    expect(res.json().output.focusSchemaVersion).toBe("2.2.0");
+    expect(res.json().output.focusSchemaVersion).toBe("2.3.0");
   });
 
   it("aws records have providerRole direct-provider", async () => {
@@ -255,9 +255,9 @@ describe("POST /mcp/v1/tools/billing.compare.period/call", () => {
     expect(services).toContain("AmazonS3");
   });
 
-  it("output includes focusSchemaVersion 2.2.0", async () => {
+  it("output includes focusSchemaVersion 2.3.0", async () => {
     const res = await callBillingCompare("aws");
-    expect(res.json().output.focusSchemaVersion).toBe("2.2.0");
+    expect(res.json().output.focusSchemaVersion).toBe("2.3.0");
   });
 
   it("works for gcp provider", async () => {
