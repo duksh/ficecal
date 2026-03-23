@@ -11,6 +11,14 @@
       "note": "packages/core-economics — Phase 1 economics kernel with decimal.js, period normalization, currency conversion via ForexRateProvider, formula registry, vitest tests"
     },
     {
+      "id": "economics-module",
+      "path": "packages/economics-module",
+      "dependsOn": ["core-economics"],
+      "optional": false,
+      "status": "active",
+      "note": "packages/economics-module — umbrella plugin registry for all economics engines; EconomicsPlugin interface and plugin host wiring"
+    },
+    {
       "id": "feature-registry",
       "path": "packages/feature-registry",
       "dependsOn": [],
