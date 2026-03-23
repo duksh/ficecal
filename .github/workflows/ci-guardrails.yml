@@ -10,6 +10,10 @@ on:
       - "fix/**"
       - "release/**"
 
+# Opt into Node.js 24 runner for all actions (deprecation of Node.js 20, effective June 2026)
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
 jobs:
   validate:
     runs-on: ubuntu-latest

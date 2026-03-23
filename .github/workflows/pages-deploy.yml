@@ -14,6 +14,10 @@ concurrency:
   group: pages
   cancel-in-progress: true
 
+# Opt into Node.js 24 runner for all actions (deprecation of Node.js 20, effective June 2026)
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
 jobs:
   build:
     if: ${{ github.event_name == 'workflow_dispatch' || vars.ENABLE_PAGES_DEPLOY == 'true' }}

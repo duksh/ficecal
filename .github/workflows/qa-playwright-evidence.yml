@@ -1,16 +1,30 @@
 name: QA Playwright Evidence
 
 on:
+  push:
+    branches: [develop]
+    paths:
+      - "apps/web/**"
+      - ".github/workflows/qa-playwright-evidence.yml"
   pull_request:
+    paths:
+      - "apps/web/**"
   workflow_dispatch:
 
 permissions:
   contents: read
 
+# Opt into Node.js 24 runner for all actions (deprecation of Node.js 20, effective June 2026)
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
 jobs:
   playwright-evidence:
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: apps/web
 
     steps:
       - name: Checkout
@@ -19,95 +33,46 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: "22"
 
-      - name: Install workspace dependencies (if lockfile exists)
+      - name: Enable corepack and install dependencies
         shell: bash
+        working-directory: .
         run: |
-          if [ -f pnpm-lock.yaml ]; then
-            corepack enable
-            pnpm install --frozen-lockfile
-          elif [ -f package-lock.json ]; then
-            npm ci
-          elif [ -f package.json ]; then
-            npm install
-          else
-            echo "No package metadata found."
-          fi
+          corepack enable
+          pnpm install --frozen-lockfile
 
-      - name: Resolve Playwright command
-        id: resolve
+      - name: Build web app
         shell: bash
-        run: |
-          set -e
-          cmd=""
-
-          if [ -f package.json ]; then
-            if node -e "const fs=require('fs'); const p=JSON.parse(fs.readFileSync('package.json','utf8')); process.exit((p.scripts && p.scripts['test:playwright']) ? 0 : 1);"; then
-              if [ -f pnpm-lock.yaml ]; then
-                cmd="pnpm run test:playwright"
-              else
-                cmd="npm run test:playwright"
-              fi
-            elif node -e "const fs=require('fs'); const p=JSON.parse(fs.readFileSync('package.json','utf8')); process.exit((p.scripts && p.scripts['test:e2e']) ? 0 : 1);"; then
-              if [ -f pnpm-lock.yaml ]; then
-                cmd="pnpm run test:e2e"
-              else
-                cmd="npm run test:e2e"
-              fi
-            fi
-          fi
-
-          if [ -z "$cmd" ] && [ -f playwright.config.ts -o -f playwright.config.js -o -f playwright.config.mjs ]; then
-            cmd="npx playwright test"
-          fi
-
-          if [ -z "$cmd" ]; then
-            echo "No Playwright suite configured — skipping (no UI changes in this PR)."
-            echo "command=skip" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          echo "command=$cmd" >> "$GITHUB_OUTPUT"
+        run: pnpm build
 
       - name: Install Playwright browsers
-        if: steps.resolve.outputs.command != 'skip'
         shell: bash
-        run: |
-          npx playwright install --with-deps
+        run: npx playwright install --with-deps chromium
 
-      - name: Run Playwright tests and capture logs
+      - name: Run Playwright evidence suite
         id: run_playwright
         shell: bash
         run: |
-          if [ "${{ steps.resolve.outputs.command }}" = "skip" ]; then
-            echo "exit_code=0" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
           set +e
           mkdir -p tests/evidence/playwright/{screenshots,videos,traces}
           mkdir -p tests/evidence/reports/{html,junit}
           mkdir -p tests/evidence/logs/ci
 
-          eval "${{ steps.resolve.outputs.command }}" 2>&1 | tee tests/evidence/logs/ci/playwright-run.log
+          pnpm test:playwright 2>&1 | tee tests/evidence/logs/ci/playwright-run.log
           exit_code=${PIPESTATUS[0]}
 
           echo "exit_code=$exit_code" >> "$GITHUB_OUTPUT"
           exit 0
 
-      - name: Collect common Playwright outputs
+      - name: Collect Playwright outputs
         if: always()
         shell: bash
         run: |
           set +e
-          mkdir -p tests/evidence/reports/html
-          mkdir -p tests/evidence/playwright/traces
-
           if [ -d playwright-report ]; then
             cp -R playwright-report/. tests/evidence/reports/html/
           fi
-
           if [ -d test-results ]; then
             cp -R test-results/. tests/evidence/playwright/traces/
           fi
@@ -118,9 +83,9 @@ jobs:
         with:
           name: playwright-evidence-${{ github.run_id }}
           path: |
-            tests/evidence/
-            playwright-report/
-            test-results/
+            apps/web/tests/evidence/
+            apps/web/playwright-report/
+            apps/web/test-results/
           if-no-files-found: warn
           retention-days: 30
 
@@ -139,7 +104,7 @@ jobs:
         run: |
           {
             echo "## QA Playwright Evidence"
-            echo "- Command: \\`${{ steps.resolve.outputs.command }}\\`"
-            echo "- Exit code: \\`${{ steps.run_playwright.outputs.exit_code }}\\`"
-            echo "- Artifacts: \\`playwright-evidence-${{ github.run_id }}\\`"
+            echo "- Suite: apps/web/e2e/smoke.spec.ts"
+            echo "- Exit code: ${{ steps.run_playwright.outputs.exit_code }}"
+            echo "- Artifacts: playwright-evidence-${{ github.run_id }}"
           } >> "$GITHUB_STEP_SUMMARY"
