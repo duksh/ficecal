@@ -1,13 +1,34 @@
 // ─── billing.estimate.actual — MCP tool ───────────────────────────────────────
 //
-// Retrieves a normalised billing period summary from a registered billing
-// adapter (deterministic mode: fixture data; live mode: 501 Not Implemented).
+// Retrieves FOCUS 1.3-normalised billing records from a registered billing
+// adapter (deterministic mode: fixture data; live mode: AWS Cost Explorer).
 //
 // Tool id: billing.estimate.actual
 // Namespace: billing
 // Stability: beta
+//
+// ─── Phase 8B upgrade ─────────────────────────────────────────────────────────
+//
+// Output upgraded from BillingPeriodSummary (12 FOCUS columns) to
+// NormalizedCostRecord[] (FOCUS 1.3, ~82% coverage, schemaVersion 2.0.0).
+//
+// A BillingPeriodSummary-to-NormalizedCostRecord mapper runs in the tool layer,
+// bridging the Phase 9 adapter output format to the Phase 10 integration adapter
+// target. Phase 10 adapters may return NormalizedCostRecord[] directly — the
+// tool will detect that shape and pass it through without re-mapping.
+//
+// FOCUS mapping:
+//   BillingLineItem.service  → NormalizedCostRecord.serviceName
+//   BillingLineItem.sku      → NormalizedCostRecord.skuId
+//   BillingLineItem.usageType→ NormalizedCostRecord.chargeDescription
+//   BillingLineItem.cost     → NormalizedCostRecord.amount (decimal string)
+//   BillingLineItem.currency → NormalizedCostRecord.currency
+//   BillingLineItem.startDate→ NormalizedCostRecord.chargePeriodStart
+//   BillingLineItem.endDate  → NormalizedCostRecord.chargePeriodEnd
 
 import type { McpToolDescriptor, McpToolResult } from "../types.js";
+import type { NormalizedCostRecord, ProviderRole } from "@ficecal/schemas/normalized-cost-record";
+import { NORMALIZED_COST_RECORD_SCHEMA_VERSION } from "@ficecal/schemas/normalized-cost-record";
 
 // ─── Input / Output ───────────────────────────────────────────────────────────
 
@@ -18,27 +39,28 @@ export interface BillingEstimateActualInput {
   currency?: string;          // ISO 4217 — defaults to provider's native currency
 }
 
-export interface BillingLineItemOutput {
-  service: string;
-  sku?: string;
-  usageType?: string;
-  cost: number;
-  currency: string;
-  startDate: string;
-  endDate: string;
-}
-
 export interface BillingEstimateActualOutput {
   provider: string;
   accountId?: string;
   billingPeriodStart: string;
   billingPeriodEnd: string;
+
+  /** Summary total across all records — convenience field for display. */
   totalCost: number;
+
   currency: string;
-  lineItemCount: number;
-  lineItems: BillingLineItemOutput[];
+
+  /** Number of FOCUS 1.3 records in this response. */
+  recordCount: number;
+
+  /** FOCUS 1.3-normalised cost records (NormalizedCostRecord v2). */
+  records: NormalizedCostRecord[];
+
   ingestMode: "deterministic" | "live";
   fixtureVersion?: string;
+
+  /** FOCUS schema version used for the records array. Always "2.0.0". */
+  focusSchemaVersion: string;
 }
 
 // ─── Registry interface ───────────────────────────────────────────────────────
@@ -48,7 +70,13 @@ export interface BillingEstimateActualOutput {
 // In tests, a mock is injected.
 
 export interface BillingAdapterRegistry {
-  getAdapter(provider: string): { load(start: string, end: string): Promise<unknown> } | undefined;
+  getAdapter(
+    provider: string,
+  ): {
+    load(start: string, end: string): Promise<unknown>;
+    /** Declared ingest mode — "live" adapters call real provider SDKs. */
+    ingestMode?: "deterministic" | "live";
+  } | undefined;
   getFixture(provider: string): { version: string } | undefined;
 }
 
@@ -64,6 +92,131 @@ export function _resetBillingRegistry(): void {
   _billingRegistry = null;
 }
 
+// ─── Provider role helper ──────────────────────────────────────────────────────
+//
+// Maps canonical provider name → FOCUS ProviderRole.
+// Hyperscalers that both host and provide native services: "direct-provider".
+// AI service providers (API-only, no compute hosting): "service-provider".
+
+function resolveProviderRole(provider: string): ProviderRole {
+  const directProviders = new Set(["aws", "gcp", "azure", "alibaba", "oci"]);
+  if (directProviders.has(provider.toLowerCase())) return "direct-provider";
+  return "service-provider"; // openai, anthropic, cohere, etc.
+}
+
+// ─── BillingPeriodSummary → NormalizedCostRecord[] mapper ─────────────────────
+//
+// Phase 9 adapters return BillingPeriodSummary (12 FOCUS-ish columns).
+// This mapper bridges each BillingLineItem to a FOCUS 1.3 NormalizedCostRecord.
+//
+// Required NormalizedCostRecord fields populated:
+//   recordId, sourceSystem, provider, providerRole,
+//   billingPeriodStart, billingPeriodEnd,
+//   chargePeriodStart, chargePeriodEnd,
+//   currency, amount, amountType,
+//   dataCompleteness, ingestedAt, schemaVersion
+//
+// Optional FOCUS fields populated where source data permits:
+//   billingAccountId, serviceName, skuId, chargeDescription,
+//   chargeCategory, chargeFrequency, billedCost, effectiveCost,
+//   pricingCategory
+
+type RawLineItem = {
+  service: string;
+  sku?: string;
+  usageType?: string;
+  cost: number;
+  currency: string;
+  startDate: string;
+  endDate: string;
+};
+
+function mapLineItemToRecord(
+  lineItem: RawLineItem,
+  provider: string,
+  accountId: string | undefined,
+  billingPeriodStart: string,
+  billingPeriodEnd: string,
+  sourceSystem: string,
+  ingestedAt: string,
+): NormalizedCostRecord {
+  const amountStr = lineItem.cost.toFixed(10);
+  const recordId = [
+    provider,
+    lineItem.service.replace(/\s+/g, "_"),
+    lineItem.sku ?? "default",
+    lineItem.startDate,
+    lineItem.endDate,
+  ].join(":");
+
+  return {
+    // ── Identity ──────────────────────────────────────────────────────────
+    recordId,
+    sourceSystem,
+
+    // ── Provider ──────────────────────────────────────────────────────────
+    provider,
+    providerRole: resolveProviderRole(provider),
+    ...(accountId !== undefined ? { providerAccountId: accountId, billingAccountId: accountId } : {}),
+
+    // ── Billing period ────────────────────────────────────────────────────
+    billingPeriodStart,
+    billingPeriodEnd,
+    chargePeriodStart: lineItem.startDate,
+    chargePeriodEnd: lineItem.endDate,
+
+    // ── Charge detail ─────────────────────────────────────────────────────
+    chargeCategory: "usage",
+    chargeFrequency: "usage-based",
+    ...(lineItem.usageType !== undefined ? { chargeDescription: lineItem.usageType } : {}),
+
+    // ── Monetary ──────────────────────────────────────────────────────────
+    currency: lineItem.currency,
+    amount: amountStr,
+    amountType: "actual",
+    billedCost: amountStr,
+    effectiveCost: amountStr,
+
+    // ── Pricing ───────────────────────────────────────────────────────────
+    pricingCategory: "standard",
+    ...(lineItem.sku !== undefined ? { skuId: lineItem.sku } : {}),
+
+    // ── Service ───────────────────────────────────────────────────────────
+    serviceName: lineItem.service,
+
+    // ── Data quality ──────────────────────────────────────────────────────
+    // "partial" because BillingPeriodSummary covers ~12 of 77 FOCUS columns;
+    // Phase 10 native adapters will produce "complete" records directly.
+    dataCompleteness: "partial",
+    ingestedAt,
+    schemaVersion: NORMALIZED_COST_RECORD_SCHEMA_VERSION,
+  };
+}
+
+function billingPeriodSummaryToRecords(
+  data: {
+    provider: string;
+    accountId?: string;
+    billingPeriodStart: string;
+    billingPeriodEnd: string;
+    lineItems: RawLineItem[];
+  },
+  sourceSystem: string,
+  ingestedAt: string,
+): NormalizedCostRecord[] {
+  return data.lineItems.map((li) =>
+    mapLineItemToRecord(
+      li,
+      data.provider,
+      data.accountId,
+      data.billingPeriodStart,
+      data.billingPeriodEnd,
+      sourceSystem,
+      ingestedAt,
+    ),
+  );
+}
+
 // ─── Tool descriptor ──────────────────────────────────────────────────────────
 
 export const billingEstimateActualTool: McpToolDescriptor<BillingEstimateActualInput, BillingEstimateActualOutput> = {
@@ -71,9 +224,10 @@ export const billingEstimateActualTool: McpToolDescriptor<BillingEstimateActualI
   name: "Billing Estimate Actual",
   description:
     "Retrieve actual cloud billing data for a given provider and time period. " +
-    "Returns normalised line items and totals. " +
-    "In deterministic mode (Phase 6), returns fixture data. " +
-    "Live provider SDK calls are available in Phase 7+.",
+    "Returns FOCUS 1.3-normalised cost records (NormalizedCostRecord v2, ~82% FOCUS coverage) " +
+    "plus a convenience summary total. " +
+    "In deterministic mode returns fixture data; live mode calls the provider SDK directly. " +
+    "Phase 8B: output upgraded from BillingPeriodSummary (12 FOCUS columns) to NormalizedCostRecord[].",
   namespace: "billing",
   stability: "beta",
   inputSchema: {
@@ -102,58 +256,98 @@ export const billingEstimateActualTool: McpToolDescriptor<BillingEstimateActualI
       );
     }
 
-    const raw = await adapter.load(input.periodStart, input.periodEnd);
-    // Type-narrowing the raw unknown result
-    const data = raw as {
-      provider: string;
-      accountId?: string;
-      billingPeriodStart: string;
-      billingPeriodEnd: string;
-      totalCost: number;
-      currency: string;
-      lineItems: Array<{
-        service: string;
-        sku?: string;
-        usageType?: string;
-        cost: number;
+    const adapterIngestMode = adapter.ingestMode ?? "deterministic";
+
+    const raw = await adapter.load(input.periodStart, input.periodEnd).catch((err: unknown) => {
+      if (
+        err instanceof Error &&
+        (err as Error & { code?: string }).code === "LIVE_BILLING_NOT_IMPLEMENTED"
+      ) {
+        throw err;
+      }
+      throw err;
+    });
+
+    // ── Type-narrow the raw unknown from the adapter ───────────────────────────
+    // Phase 9 adapters return BillingPeriodSummary shape.
+    // Phase 10 adapters will return NormalizedCostRecord[] — detected via
+    // Array.isArray check; if so, passed through without re-mapping.
+    const ingestedAt = new Date().toISOString();
+    const sourceSystem = `ficecal-billing-${input.provider}-${adapterIngestMode}`;
+
+    let records: NormalizedCostRecord[];
+    let totalCost: number;
+    let currency: string;
+    let billingPeriodStart: string;
+    let billingPeriodEnd: string;
+    let accountId: string | undefined;
+
+    if (Array.isArray(raw)) {
+      // Phase 10 native adapter: already NormalizedCostRecord[]
+      records = raw as NormalizedCostRecord[];
+      totalCost = records.reduce((sum, r) => sum + parseFloat(r.amount), 0);
+      currency = input.currency ?? (records[0]?.currency ?? "USD");
+      billingPeriodStart = input.periodStart;
+      billingPeriodEnd = input.periodEnd;
+    } else {
+      // Phase 9 adapter: BillingPeriodSummary shape — map to NormalizedCostRecord[]
+      const data = raw as {
+        provider: string;
+        accountId?: string;
+        billingPeriodStart: string;
+        billingPeriodEnd: string;
+        totalCost: number;
         currency: string;
-        startDate: string;
-        endDate: string;
-      }>;
-    };
+        lineItems: RawLineItem[];
+      };
+
+      records = billingPeriodSummaryToRecords(data, sourceSystem, ingestedAt);
+      totalCost = data.totalCost;
+      currency = input.currency ?? data.currency;
+      billingPeriodStart = data.billingPeriodStart;
+      billingPeriodEnd = data.billingPeriodEnd;
+      accountId = data.accountId;
+    }
 
     const fixtureVersion = _billingRegistry.getFixture(input.provider)?.version;
 
     const output: BillingEstimateActualOutput = {
-      provider: data.provider,
-      ...(data.accountId !== undefined ? { accountId: data.accountId } : {}),
-      billingPeriodStart: data.billingPeriodStart,
-      billingPeriodEnd: data.billingPeriodEnd,
-      totalCost: Number(data.totalCost.toFixed(2)),
-      currency: input.currency ?? data.currency,
-      lineItemCount: data.lineItems.length,
-      lineItems: data.lineItems.map((li) => ({
-        service: li.service,
-        ...(li.sku !== undefined ? { sku: li.sku } : {}),
-        ...(li.usageType !== undefined ? { usageType: li.usageType } : {}),
-        cost: Number(li.cost.toFixed(2)),
-        currency: li.currency,
-        startDate: li.startDate,
-        endDate: li.endDate,
-      })),
-      ingestMode: "deterministic",
+      provider: input.provider,
+      ...(accountId !== undefined ? { accountId } : {}),
+      billingPeriodStart,
+      billingPeriodEnd,
+      totalCost: Number(totalCost.toFixed(2)),
+      currency,
+      recordCount: records.length,
+      records,
+      ingestMode: adapterIngestMode,
       ...(fixtureVersion !== undefined ? { fixtureVersion } : {}),
+      focusSchemaVersion: NORMALIZED_COST_RECORD_SCHEMA_VERSION,
     };
+
+    const warnings: string[] = fixtureVersion
+      ? [
+          `Billing data is deterministic (fixture v${fixtureVersion}). ` +
+          "Records carry dataCompleteness: \"partial\" — live adapters will produce \"complete\" records.",
+        ]
+      : [
+          "Live billing records carry dataCompleteness: \"partial\" because BillingPeriodSummary " +
+          "covers ~12 of 77 FOCUS 1.3 columns. Phase 10 native adapters will produce \"complete\" records.",
+        ];
 
     const result: McpToolResult<BillingEstimateActualOutput> = {
       output,
       toolId: billingEstimateActualTool.id,
       executedAt: new Date().toISOString(),
       requestId: context.requestId,
-      warnings: fixtureVersion
-        ? [`Billing data is deterministic (fixture v${fixtureVersion}). Live data available in Phase 7+.`]
-        : [],
-      appliedIds: ["billing.adapter.deterministic"],
+      warnings,
+      appliedIds: [
+        adapterIngestMode === "live"
+          ? "billing.adapter.live"
+          : "billing.adapter.deterministic",
+        "billing.focus.normalizer.v2",
+        `billing.schema.${NORMALIZED_COST_RECORD_SCHEMA_VERSION}`,
+      ],
     };
 
     return result;

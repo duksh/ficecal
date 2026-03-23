@@ -5,6 +5,10 @@
   "description": "Public monorepo bootstrap for FiceCal v2 web, MCP, and modular contracts.",
   "packageManager": "pnpm@10.6.0",
   "scripts": {
+    "dev":      "bash scripts/dev.sh",
+    "dev:full": "bash scripts/dev.sh",
+    "dev:mcp":  "pnpm --filter @ficecal/service-mcp dev",
+    "dev:web":  "pnpm --filter @ficecal/web dev",
     "validate:feature-catalog": "python3 scripts/validate-feature-catalog.py",
     "validate:fixture-coverage": "python3 scripts/validate-fixture-coverage.py",
     "validate:legacy-alias-parity": "python3 scripts/validate-legacy-alias-parity.py",

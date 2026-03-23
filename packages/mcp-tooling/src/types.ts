@@ -34,12 +34,26 @@ export interface McpToolEnvelope<TInput> {
 // ─── Tool descriptor ──────────────────────────────────────────────────────────
 
 /**
+ * A JSON Schema property descriptor (recursive to support nested objects/arrays).
+ */
+export interface McpJsonSchemaProperty {
+  type: string;
+  description?: string;
+  enum?: string[];
+  /** For type "array": element schema. */
+  items?: McpJsonSchemaProperty | { type: string; properties?: Record<string, McpJsonSchemaProperty>; required?: string[] };
+  /** For type "object": child properties. */
+  properties?: Record<string, McpJsonSchemaProperty>;
+  required?: string[];
+}
+
+/**
  * JSON Schema-compatible type for documenting tool input shapes.
- * Not a full JSON Schema implementation — just enough for tooling metadata.
+ * Supports nested objects and arrays for complex tool inputs.
  */
 export interface McpToolInputSchema {
   type: "object";
-  properties: Record<string, { type: string; description: string; enum?: string[] }>;
+  properties: Record<string, McpJsonSchemaProperty>;
   required: string[];
 }
 
