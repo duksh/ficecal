@@ -32,7 +32,7 @@ export type { StorageAdapter } from "./preferences.js";
 export { MemoryStorageAdapter, PreferenceStore } from "./preferences.js";
 
 // ─── Theme ────────────────────────────────────────────────────────────────────
-export type { SystemThemeAdapter, DocumentThemeAdapter } from "./theme.js";
+export type { SystemThemeAdapter, DocumentThemeAdapter, ThemeTokenSource } from "./theme.js";
 export {
   StaticSystemThemeAdapter,
   MediaQuerySystemThemeAdapter,

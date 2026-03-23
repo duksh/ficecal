@@ -1,11 +1,15 @@
 // ─── NavBar ───────────────────────────────────────────────────────────────────
 //
-// Sticky top navigation bar with section anchors, theme toggle, and active
+// Sticky top navigation bar with section anchors, theme picker, and active
 // section tracking via IntersectionObserver.
+//
+// Phase 7: ThemeToggle replaced by ThemePicker — shows all plugin-contributed
+// themes (light, dark, high-contrast, ocean-blue, and any community plugins
+// registered at runtime).
 
 import { useState, useEffect } from "react";
 import type { ThemeManager, LocalizationShell } from "@ficecal/ui-foundation";
-import { ThemeToggle } from "./ThemeToggle.js";
+import { ThemePicker } from "./ThemePicker.js";
 
 interface NavSection {
   id: string;
@@ -13,10 +17,12 @@ interface NavSection {
 }
 
 const SECTIONS: NavSection[] = [
-  { id: "calculator", label: "Calculator" },
-  { id: "health", label: "Health" },
-  { id: "chart", label: "Chart" },
-  { id: "architect", label: "Architect" },
+  { id: "calculator",   label: "Calculator" },
+  { id: "health",       label: "Health" },
+  { id: "chart",        label: "Chart" },
+  { id: "architect",    label: "Architect" },
+  { id: "intelligence", label: "Intelligence" },
+  { id: "admin",        label: "Admin" },
 ];
 
 interface Props {
@@ -72,7 +78,8 @@ export function NavBar({ theme, i18n }: Props) {
         ))}
       </ul>
 
-      <ThemeToggle theme={theme} i18n={i18n} />
+      {/* Phase 7: full theme picker with all plugin-contributed themes */}
+      <ThemePicker theme={theme} />
     </nav>
   );
 }

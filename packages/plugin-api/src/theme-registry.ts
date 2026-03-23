@@ -22,6 +22,8 @@ export class RecordingThemeAdapter implements ThemeDocumentAdapter {
 
 export class ThemeRegistry {
   private readonly themes = new Map<string, ThemeContribution>();
+  /** Maps theme id → plugin id that contributed it. */
+  private readonly themeOwners = new Map<string, string>();
 
   /** Register a theme contribution. Throws on duplicate id. */
   register(theme: ThemeContribution, pluginId = "unknown"): void {
@@ -33,6 +35,23 @@ export class ThemeRegistry {
       );
     }
     this.themes.set(theme.id, theme);
+    this.themeOwners.set(theme.id, pluginId);
+  }
+
+  /**
+   * Remove all themes contributed by the given plugin.
+   * Returns the number of themes removed.
+   */
+  unregisterByPlugin(pluginId: string): number {
+    let count = 0;
+    for (const [themeId, owner] of this.themeOwners) {
+      if (owner === pluginId) {
+        this.themes.delete(themeId);
+        this.themeOwners.delete(themeId);
+        count++;
+      }
+    }
+    return count;
   }
 
   /** Look up a theme by id. */

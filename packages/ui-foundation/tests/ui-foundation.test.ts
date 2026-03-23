@@ -212,6 +212,135 @@ describe("ThemeManager", () => {
   });
 });
 
+// ─── ThemeManager Phase 7 — ThemeTokenSource + custom themes ─────────────────
+
+describe("ThemeManager — custom plugin themes (Phase 7)", () => {
+  // Minimal ThemeTokenSource stub with two themes
+  const mockSource = {
+    get(id: string) {
+      const tokens: Record<string, Record<string, string>> = {
+        "high-contrast": {
+          "--fc-bg-base": "#000000",
+          "--fc-text-primary": "#ffffff",
+          "--fc-accent": "#ffff00",
+        },
+        "ocean-blue": {
+          "--fc-bg-base": "#0c1b33",
+          "--fc-text-primary": "#e8f4f8",
+          "--fc-accent": "#00b4d8",
+        },
+      };
+      return tokens[id] ? { tokens: tokens[id]! } : undefined;
+    },
+    list() {
+      return [
+        { id: "high-contrast", displayName: "High Contrast", previewSwatch: "#000000", description: "WCAG AAA" },
+        { id: "ocean-blue", displayName: "Ocean Blue", previewSwatch: "#0c1b33" },
+      ];
+    },
+  };
+
+  function makeThemeWithSource() {
+    const mem = new MemoryStorageAdapter();
+    const doc = new RecordingDocumentAdapter();
+    const sys = new StaticSystemThemeAdapter(false);
+    return { manager: new ThemeManager(mem, sys, doc, mockSource), doc, mem };
+  }
+
+  it("getActiveThemeId() returns resolved theme when no custom theme is set", () => {
+    const { manager } = makeThemeWithSource();
+    // system pref, OS is light → resolved is "light"
+    expect(manager.getActiveThemeId()).toBe("light");
+  });
+
+  it("listThemes() returns all themes from the source", () => {
+    const { manager } = makeThemeWithSource();
+    const themes = manager.listThemes();
+    expect(themes).toHaveLength(2);
+    expect(themes[0]!.id).toBe("high-contrast");
+    expect(themes[1]!.id).toBe("ocean-blue");
+  });
+
+  it("listThemes() returns empty array when no themeSource is provided", () => {
+    const manager = new ThemeManager(
+      new MemoryStorageAdapter(),
+      new StaticSystemThemeAdapter(),
+      new RecordingDocumentAdapter(),
+    );
+    expect(manager.listThemes()).toHaveLength(0);
+  });
+
+  it("setCustomTheme() switches apply() to use custom tokens", () => {
+    const { manager, doc } = makeThemeWithSource();
+    manager.setCustomTheme("high-contrast");
+    // apply() was called inside setCustomTheme — doc should have the custom tokens
+    expect(doc.attributes.get("data-theme")).toBe("high-contrast");
+    expect(doc.styles.get("--fc-bg-base")).toBe("#000000");
+    expect(doc.styles.get("--fc-accent")).toBe("#ffff00");
+  });
+
+  it("getActiveThemeId() returns the custom theme id after setCustomTheme()", () => {
+    const { manager } = makeThemeWithSource();
+    manager.setCustomTheme("ocean-blue");
+    expect(manager.getActiveThemeId()).toBe("ocean-blue");
+  });
+
+  it("setCustomTheme() notifies subscribers", () => {
+    const { manager } = makeThemeWithSource();
+    const received: string[] = [];
+    manager.subscribe((resolved) => received.push(resolved));
+    manager.setCustomTheme("high-contrast");
+    expect(received).toHaveLength(1);
+  });
+
+  it("setCustomTheme() persists to storage and is restored on new instance", () => {
+    const mem = new MemoryStorageAdapter();
+    const sys = new StaticSystemThemeAdapter();
+    const m1 = new ThemeManager(mem, sys, new RecordingDocumentAdapter(), mockSource);
+    m1.setCustomTheme("ocean-blue");
+    const m2 = new ThemeManager(mem, sys, new RecordingDocumentAdapter(), mockSource);
+    expect(m2.getActiveThemeId()).toBe("ocean-blue");
+  });
+
+  it("clearCustomTheme() restores preference-based resolution", () => {
+    const { manager, doc } = makeThemeWithSource();
+    manager.setPreference("light");
+    manager.setCustomTheme("high-contrast");
+    manager.clearCustomTheme();
+    expect(manager.getActiveThemeId()).toBe("light");
+    expect(doc.attributes.get("data-theme")).toBe("light");
+    expect(doc.styles.get("--fc-bg-base")).toBe(THEME_TOKENS.light["--fc-bg-base"]);
+  });
+
+  it("clearCustomTheme() removes the persisted custom theme key", () => {
+    const mem = new MemoryStorageAdapter();
+    const sys = new StaticSystemThemeAdapter();
+    const manager = new ThemeManager(mem, sys, new RecordingDocumentAdapter(), mockSource);
+    manager.setCustomTheme("ocean-blue");
+    manager.clearCustomTheme();
+    expect(mem.getItem("ficecal:theme:custom:v1")).toBeNull();
+  });
+
+  it("apply() falls back to THEME_TOKENS when custom theme id is unknown", () => {
+    const { manager, doc } = makeThemeWithSource();
+    manager.setPreference("dark");
+    // Force a custom theme id that doesn't exist in the source
+    manager.setCustomTheme("non-existent-theme");
+    // Should have fallen back to dark THEME_TOKENS
+    expect(doc.attributes.get("data-theme")).toBe("dark");
+    expect(doc.styles.get("--fc-bg-base")).toBe(THEME_TOKENS.dark["--fc-bg-base"]);
+  });
+
+  it("listThemes() includes displayName and previewSwatch from source", () => {
+    const { manager } = makeThemeWithSource();
+    const themes = manager.listThemes();
+    const hc = themes.find((t) => t.id === "high-contrast");
+    expect(hc?.displayName).toBe("High Contrast");
+    expect(hc?.previewSwatch).toBe("#000000");
+    expect(hc?.description).toBe("WCAG AAA");
+  });
+});
+
 // ─── IntentScopeState ─────────────────────────────────────────────────────────
 
 describe("IntentScopeState", () => {

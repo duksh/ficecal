@@ -11,6 +11,9 @@
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },
+  "dependencies": {
+    "@ficecal/plugin-registry-client": "workspace:*"
+  },
   "devDependencies": {
     "vitest": "^1.6.0",
     "typescript": "~5.4.5"

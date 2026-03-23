@@ -3,6 +3,8 @@
 // Zero-dependency. All contribution point types live here.
 // Compatible with @ficecal/mcp-tooling types via structural typing (no import).
 
+import type { FicecalPluginManifest } from "./manifest.js";
+
 // ─── Theme contribution ────────────────────────────────────────────────────────
 
 /**
@@ -204,6 +206,47 @@ export interface FicecalPlugin {
   requires?: string[];
   /** The contribution points this plugin provides. */
   contributions: FicecalPluginContributions;
+  /**
+   * Optional structured manifest for community plugins (non-@ficecal/* ids).
+   * When present, PluginHost validates it at registration time via
+   * validatePluginManifest(). Core plugins from @ficecal/* are exempt.
+   */
+  manifest?: FicecalPluginManifest;
+}
+
+// ─── Feature flag descriptor ──────────────────────────────────────────────────
+
+/**
+ * Descriptor for a named feature flag.
+ *
+ * Declared via PluginHost.declareFeatureFlag() so the admin panel can list
+ * all known flags (even inactive ones) with human-readable metadata.
+ */
+export interface FeatureFlagDescriptor {
+  /** Flag key used in plugin `requires` arrays and PluginHost constructor. */
+  key: string;
+  /** Human-readable label for the admin control panel. */
+  displayName: string;
+  /** Optional longer description shown in tooltips / help text. */
+  description?: string;
+  /**
+   * Delivery phase this flag was introduced in.
+   * Informational only — shown in the admin panel.
+   * e.g. "Phase 1", "Phase 7"
+   */
+  phase?: string;
+}
+
+// ─── Plugin entry (for admin listings) ────────────────────────────────────────
+
+/**
+ * A plugin with its runtime enabled/disabled state.
+ * Returned by PluginHost.listPluginEntries() for the admin panel plugin manager.
+ */
+export interface PluginEntry {
+  plugin: FicecalPlugin;
+  /** True unless disablePlugin() has been called for this plugin's id. */
+  enabled: boolean;
 }
 
 // ─── Plugin registration errors ───────────────────────────────────────────────
@@ -214,7 +257,8 @@ export type PluginErrorCode =
   | "DUPLICATE_BILLING_ADAPTER"
   | "DUPLICATE_BILLING_FIXTURE"
   | "UNMET_REQUIREMENTS"
-  | "INVALID_THEME_TOKENS";
+  | "INVALID_THEME_TOKENS"
+  | "MANIFEST_INVALID";   // Phase 11: community plugin manifest failed validatePluginManifest()
 
 export class PluginRegistrationError extends Error {
   constructor(

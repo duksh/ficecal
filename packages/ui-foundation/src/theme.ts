@@ -2,6 +2,29 @@ import type { ThemePreference, ResolvedTheme } from "./types.js";
 import type { StorageAdapter } from "./preferences.js";
 import { MemoryStorageAdapter } from "./preferences.js";
 
+// ─── Plugin theme source (bridge to ThemeRegistry) ────────────────────────────
+
+/**
+ * Minimal interface for a registry of plugin-contributed themes.
+ *
+ * Structurally compatible with ThemeRegistry from @ficecal/plugin-api —
+ * no hard import dependency needed, keeping ui-foundation zero-dependency.
+ *
+ * Pass `pluginHost.themes` directly — TypeScript's structural typing ensures
+ * the ThemeRegistry class satisfies this interface without any cast.
+ */
+export interface ThemeTokenSource {
+  /** Look up a theme's CSS token map by id. */
+  get(id: string): { tokens: Record<string, string> } | undefined;
+  /** Enumerate all registered themes for theme picker rendering. */
+  list(): ReadonlyArray<{
+    id: string;
+    displayName: string;
+    previewSwatch?: string;
+    description?: string;
+  }>;
+}
+
 // ─── System-preference adapter ────────────────────────────────────────────────
 
 /**
@@ -102,6 +125,7 @@ export class RecordingDocumentAdapter implements DocumentThemeAdapter {
 // ─── ThemeManager ─────────────────────────────────────────────────────────────
 
 const STORAGE_KEY = "ficecal:theme:v1";
+const CUSTOM_THEME_KEY = "ficecal:theme:custom:v1";
 
 /**
  * Manages the active color theme for FiceCal v2.
@@ -119,15 +143,26 @@ const STORAGE_KEY = "ficecal:theme:v1";
  */
 export class ThemeManager {
   private preference: ThemePreference;
+  private customThemeId: string | null;
   private readonly listeners = new Set<(resolved: ResolvedTheme) => void>();
   private unsubscribeSystem: (() => void) | null = null;
 
+  /**
+   * @param storage   - Persistence adapter (localStorage in browser, MemoryStorageAdapter in tests)
+   * @param system    - OS dark-mode adapter (MediaQuerySystemThemeAdapter in browser)
+   * @param doc       - DOM adapter for applying tokens (documentElement wrapper in browser)
+   * @param themeSource - Optional plugin theme registry. When provided, plugin-contributed themes
+   *   are available for selection via setCustomTheme(). Pass pluginHost.themes directly —
+   *   ThemeRegistry is structurally compatible with ThemeTokenSource.
+   */
   constructor(
     private readonly storage: StorageAdapter = new MemoryStorageAdapter(),
     private readonly system: SystemThemeAdapter = new StaticSystemThemeAdapter(),
     private readonly doc: DocumentThemeAdapter = new RecordingDocumentAdapter(),
+    private readonly themeSource?: ThemeTokenSource,
   ) {
     this.preference = this.loadPreference();
+    this.customThemeId = this.loadCustomThemeId();
     this.apply();
     this.watchSystem();
   }
@@ -144,6 +179,16 @@ export class ThemeManager {
     return this.resolve(this.preference);
   }
 
+  /**
+   * The currently active theme id.
+   *
+   * - When a custom plugin theme is selected, returns its id (e.g. "high-contrast").
+   * - Otherwise returns the resolved system/user preference ("light" or "dark").
+   */
+  getActiveThemeId(): string {
+    return this.customThemeId ?? this.getResolved();
+  }
+
   /** Update the preference, persist, apply, and notify subscribers. */
   setPreference(pref: ThemePreference): void {
     this.preference = pref;
@@ -151,6 +196,44 @@ export class ThemeManager {
     this.apply();
     this.watchSystem(); // re-wire system listener if needed
     this.notify();
+  }
+
+  /**
+   * Activate a plugin-contributed theme by id.
+   *
+   * The id must be registered in the ThemeTokenSource passed to the constructor.
+   * Overrides the light/dark/system preference until clearCustomTheme() is called.
+   * Persists across sessions.
+   */
+  setCustomTheme(id: string): void {
+    this.customThemeId = id;
+    this.storage.setItem(CUSTOM_THEME_KEY, id);
+    this.apply();
+    this.notify();
+  }
+
+  /**
+   * Clear any active custom theme, restoring light/dark/system preference behavior.
+   */
+  clearCustomTheme(): void {
+    this.customThemeId = null;
+    this.storage.removeItem(CUSTOM_THEME_KEY);
+    this.apply();
+    this.notify();
+  }
+
+  /**
+   * Return all themes available for the theme picker.
+   * Sourced from the ThemeTokenSource (ThemeRegistry) if provided.
+   * Returns an empty array when no themeSource was given.
+   */
+  listThemes(): ReadonlyArray<{
+    id: string;
+    displayName: string;
+    previewSwatch?: string;
+    description?: string;
+  }> {
+    return this.themeSource?.list() ?? [];
   }
 
   /** Cycle through light → dark → system → light. */
@@ -168,8 +251,27 @@ export class ThemeManager {
     return () => this.listeners.delete(listener);
   }
 
-  /** Apply current theme tokens to the document. Call early to avoid FWOT. */
+  /**
+   * Apply current theme tokens to the document. Call early to avoid FWOT.
+   *
+   * Resolution order:
+   *   1. Custom plugin theme (if set and found in themeSource) — uses registry tokens
+   *   2. Light/dark from user preference + system detection — uses THEME_TOKENS
+   */
   apply(): void {
+    // 1. Plugin-contributed custom theme (e.g. high-contrast, ocean-blue)
+    if (this.customThemeId && this.themeSource) {
+      const theme = this.themeSource.get(this.customThemeId);
+      if (theme) {
+        this.doc.setAttribute("data-theme", this.customThemeId);
+        for (const [prop, value] of Object.entries(theme.tokens)) {
+          this.doc.setStyle(prop, value);
+        }
+        return;
+      }
+    }
+
+    // 2. Resolved light/dark from preference + OS detection
     const resolved = this.getResolved();
     this.doc.setAttribute("data-theme", resolved);
     const tokens = THEME_TOKENS[resolved];
@@ -189,6 +291,10 @@ export class ThemeManager {
     const stored = this.storage.getItem(STORAGE_KEY);
     if (stored === "light" || stored === "dark" || stored === "system") return stored;
     return "system";
+  }
+
+  private loadCustomThemeId(): string | null {
+    return this.storage.getItem(CUSTOM_THEME_KEY);
   }
 
   private watchSystem(): void {
