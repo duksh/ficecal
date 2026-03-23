@@ -33,13 +33,13 @@ describe("GET /mcp/v1/health", () => {
     const body = res.json();
     expect(body.status).toBe("ok");
     expect(body.service).toBe("@ficecal/service-mcp");
-    expect(body.phase).toBe(6);
+    expect(body.phase).toBe(12);
   });
 
-  it("reports 5 registered tools (3 economics + 2 billing)", async () => {
+  it("reports 23 registered tools (phase 5-12)", async () => {
     const res = await app.inject({ method: "GET", url: "/mcp/v1/health" });
     const body = res.json();
-    expect(body.toolCount).toBe(5);
+    expect(body.toolCount).toBe(23);
   });
 
   it("reports economics and health namespaces", async () => {

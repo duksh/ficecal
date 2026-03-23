@@ -1,6 +1,6 @@
 {
   "name": "@ficecal/service-mcp",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "FiceCal v2 MCP service layer — Fastify HTTP transport around mcp-tooling economics tools",
   "private": true,
   "type": "module",
@@ -14,15 +14,18 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@ficecal/mcp-tooling": "workspace:*",
-    "@ficecal/plugin-api": "workspace:*",
+    "@aws-sdk/client-cost-explorer": "^3.1014.0",
+    "@fastify/cors": "^9.0.1",
+    "@ficecal/ai-token-economics": "workspace:*",
+    "@ficecal/core-economics": "workspace:*",
     "@ficecal/economics-module": "workspace:*",
     "@ficecal/health-score": "workspace:*",
+    "@ficecal/billing-ai-providers": "workspace:*",
+    "@ficecal/schemas": "workspace:*",
+    "@ficecal/mcp-tooling": "workspace:*",
+    "@ficecal/plugin-api": "workspace:*",
     "@ficecal/recommendation-module": "workspace:*",
-    "@ficecal/core-economics": "workspace:*",
-    "@ficecal/ai-token-economics": "workspace:*",
     "fastify": "^4.28.1",
-    "@fastify/cors": "^9.0.1",
     "zod": "^3.23.8"
   },
   "devDependencies": {

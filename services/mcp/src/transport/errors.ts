@@ -8,7 +8,11 @@ export type McpErrorCode =
   | "INVALID_REQUEST"
   | "CONTEXT_INVALID"
   | "TOOL_EXECUTION_FAILED"
-  | "INTERNAL_ERROR";
+  | "INTERNAL_ERROR"
+  /** Phase 7: live billing adapter stub — provider SDK not yet integrated. */
+  | "LIVE_BILLING_NOT_IMPLEMENTED"
+  /** Phase 12: workspace scope enforcement. */
+  | "WORKSPACE_SCOPE_DENIED";
 
 export interface McpErrorBody {
   code: McpErrorCode;

@@ -1,0 +1,21 @@
+{
+  "name": "@ficecal/finops-assessment",
+  "version": "0.1.0",
+  "description": "FiceCal v2 FinOps Framework 2026 assessment engine — crawl/walk/run scoring across six capability domains",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "node --experimental-vm-modules node_modules/vitest/vitest.mjs run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@ficecal/contracts": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.4.0",
+    "vitest": "^2.0.0"
+  }
+}
