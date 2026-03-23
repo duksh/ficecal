@@ -12,6 +12,7 @@ import { CostEstimator } from "./components/CostEstimator.js";
 import { HealthDashboard } from "./components/HealthDashboard.js";
 import { ArchitectPanel } from "./components/ArchitectPanel.js";
 import { NavBar } from "./components/NavBar.js";
+import { DevBanner } from "./components/DevBanner.js";
 import { ScenarioBar } from "./components/ScenarioBar.js";
 import { AdminPanel } from "./components/AdminPanel.js";
 import { IntelligencePanel } from "./components/IntelligencePanel.js";
@@ -56,6 +57,7 @@ export function App() {
 
   return (
     <div className="shell">
+      <DevBanner />
       <NavBar theme={theme} i18n={i18n} />
 
       {/* ── Hero header ─────────────────────────────────────────────────────── */}

@@ -67,6 +67,55 @@ body {
 }
 code { font-family: var(--fc-mono); font-size: 0.85em; }
 
+/* ── Dev preview banner ──────────────────────────────────────────────────── */
+.dev-banner {
+  position: sticky;
+  top: 0;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.55rem 1.25rem;
+  background: color-mix(in srgb, var(--fc-warn) 15%, var(--fc-surface));
+  border-bottom: 2px solid var(--fc-warn);
+  font-size: 0.82rem;
+  color: var(--fc-text);
+  flex-wrap: wrap;
+}
+.dev-banner__icon { font-size: 1rem; flex-shrink: 0; }
+.dev-banner__text { flex: 1; min-width: 0; line-height: 1.4; }
+.dev-banner__text code {
+  background: color-mix(in srgb, var(--fc-warn) 20%, transparent);
+  color: var(--fc-warn);
+  padding: 0.1em 0.35em;
+  border-radius: 4px;
+  font-size: 0.9em;
+}
+.dev-banner__link {
+  color: var(--fc-warn);
+  text-decoration: underline;
+  white-space: nowrap;
+  flex-shrink: 0;
+  font-weight: 600;
+}
+.dev-banner__link:hover { opacity: 0.8; }
+.dev-banner__dismiss {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--fc-text-muted);
+  font-size: 0.9rem;
+  padding: 0.15rem 0.35rem;
+  border-radius: 4px;
+  flex-shrink: 0;
+  line-height: 1;
+  transition: color 0.15s, background 0.15s;
+}
+.dev-banner__dismiss:hover {
+  color: var(--fc-text);
+  background: color-mix(in srgb, var(--fc-warn) 20%, transparent);
+}
+
 /* ── Shell layout ────────────────────────────────────────────────────────── */
 .shell {
   max-width: 1100px;
