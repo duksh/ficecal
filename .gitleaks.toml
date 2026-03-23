@@ -1,0 +1,12 @@
+# .gitleaks.toml — gitleaks allowlist for FiceCal
+# Docs: https://github.com/gitleaks/gitleaks#configuration
+#
+# These are known false positives: AWS Bedrock billing SKU identifiers
+# (e.g. "AmazonBedrock-InputTokens:claude-3-sonnet") match the generic-api-key
+# entropy rule because of their colon-separated format, but are not secrets.
+
+[allowlist]
+  description = "AWS Bedrock SKU names in test fixtures"
+  paths = [
+    '''packages/schemas/tests/.*\.test\.ts''',
+  ]

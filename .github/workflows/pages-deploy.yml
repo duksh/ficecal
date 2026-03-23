@@ -38,7 +38,8 @@ jobs:
           pnpm install --frozen-lockfile
 
       - name: Build workspace packages (excluding web app)
-        run: pnpm -r run --if-present build --filter='!@ficecal/web'
+        # --filter must come before 'run' so pnpm parses it, not the script
+        run: pnpm --filter '!@ficecal/web' run --if-present build
 
       - name: Build web app
         env:
