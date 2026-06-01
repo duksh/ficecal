@@ -17,7 +17,7 @@
     "@ficecal/multi-tech-normalization": "workspace:*"
   },
   "devDependencies": {
-    "vitest": "^3.1.1",
+    "vitest": "^4.1.0",
     "typescript": "^5.8.3"
   }
 }
