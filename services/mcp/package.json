@@ -27,7 +27,7 @@
     "@ficecal/recommendation-module": "workspace:*",
     "@ficecal/schemas": "workspace:*",
     "@google-cloud/bigquery": "^7.9.1",
-    "fastify": "^4.28.1",
+    "fastify": "^5.8.5",
     "zod": "^3.23.8"
   },
   "devDependencies": {
@@ -35,7 +35,7 @@
     "tsup": "^8.5.1",
     "tsx": "^4.11.0",
     "typescript": "^5.4.0",
-    "vitest": "^1.6.0"
+    "vitest": "^3.2.6"
   },
   "ficecal": {
     "phase": 6,
